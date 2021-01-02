@@ -27,8 +27,8 @@ struct MPUData
     float _uORB_Gryo__Roll = 0;
     float _uORB_Gryo_Pitch = 0;
     float _uORB_Gryo___Yaw = 0;
-    float _uORB_GAngel__Roll = 0;
-    float _uORB_GAngel_Pitch = 0;
+    float _uORB_Real__Roll = 0;
+    float _uORB_Real_Pitch = 0;
     float _uORB_Accel__Roll = 0;
     float _uORB_Accel_Pitch = 0;
 
@@ -50,6 +50,8 @@ public:
         MPU9250_SPI_Channel = MPUSPIChannel;
         MPU9250_MixFilterType = MixFilterType;
         CompassEnable = IsBuildInCompassEnable;
+
+        SF = new MPUData();
 
         if (Type == MPUTypeSPI)
         {
@@ -85,50 +87,50 @@ public:
 
     inline int MPUGryoCalibration()
     {
-        SF._flag_MPU9250_G_X_Cali = 0;
-        SF._flag_MPU9250_G_Y_Cali = 0;
-        SF._flag_MPU9250_G_Z_Cali = 0;
+        SF->_flag_MPU9250_G_X_Cali = 0;
+        SF->_flag_MPU9250_G_Y_Cali = 0;
+        SF->_flag_MPU9250_G_Z_Cali = 0;
         for (int cali_count = 0; cali_count < 2000; cali_count++)
         {
             IMUSensorsDataRead();
-            SF._flag_MPU9250_G_X_Cali += SF._uORB_MPU9250_G_X;
-            SF._flag_MPU9250_G_Y_Cali += SF._uORB_MPU9250_G_Y;
-            SF._flag_MPU9250_G_Z_Cali += SF._uORB_MPU9250_G_Z;
+            SF->_flag_MPU9250_G_X_Cali += SF->_uORB_MPU9250_G_X;
+            SF->_flag_MPU9250_G_Y_Cali += SF->_uORB_MPU9250_G_Y;
+            SF->_flag_MPU9250_G_Z_Cali += SF->_uORB_MPU9250_G_Z;
             usleep(500);
         }
-        SF._flag_MPU9250_G_X_Cali = SF._flag_MPU9250_G_X_Cali / 2000;
-        SF._flag_MPU9250_G_Y_Cali = SF._flag_MPU9250_G_Y_Cali / 2000;
-        SF._flag_MPU9250_G_Z_Cali = SF._flag_MPU9250_G_Z_Cali / 2000;
+        SF->_flag_MPU9250_G_X_Cali = SF->_flag_MPU9250_G_X_Cali / 2000;
+        SF->_flag_MPU9250_G_Y_Cali = SF->_flag_MPU9250_G_Y_Cali / 2000;
+        SF->_flag_MPU9250_G_Z_Cali = SF->_flag_MPU9250_G_Z_Cali / 2000;
 
         return 0;
     };
 
-    inline MPUData MPUSensorsDataGet()
+    inline MPUData *MPUSensorsDataGet()
     {
         IMUSensorsDataRead();
-        SF._uORB_MPU9250_G_X -= SF._flag_MPU9250_G_X_Cali;
-        SF._uORB_MPU9250_G_Y -= SF._flag_MPU9250_G_Y_Cali;
-        SF._uORB_MPU9250_G_Z -= SF._flag_MPU9250_G_Z_Cali;
+        SF->_uORB_MPU9250_G_X -= SF->_flag_MPU9250_G_X_Cali;
+        SF->_uORB_MPU9250_G_Y -= SF->_flag_MPU9250_G_Y_Cali;
+        SF->_uORB_MPU9250_G_Z -= SF->_flag_MPU9250_G_Z_Cali;
 
-        SF._uORB_Gryo_Pitch = (SF._uORB_Gryo_Pitch * 0.7) + ((SF._uORB_MPU9250_G_X / MPU9250_LSB) * 0.3);
-        SF._uORB_Gryo__Roll = (SF._uORB_Gryo__Roll * 0.7) + ((SF._uORB_MPU9250_G_Y / MPU9250_LSB) * 0.3);
-        SF._uORB_Gryo___Yaw = (SF._uORB_Gryo___Yaw * 0.7) + ((SF._uORB_MPU9250_G_Z / MPU9250_LSB) * 0.3);
+        SF->_uORB_Gryo_Pitch = (SF->_uORB_Gryo_Pitch * 0.7) + ((SF->_uORB_MPU9250_G_X / MPU9250_LSB) * 0.3);
+        SF->_uORB_Gryo__Roll = (SF->_uORB_Gryo__Roll * 0.7) + ((SF->_uORB_MPU9250_G_Y / MPU9250_LSB) * 0.3);
+        SF->_uORB_Gryo___Yaw = (SF->_uORB_Gryo___Yaw * 0.7) + ((SF->_uORB_MPU9250_G_Z / MPU9250_LSB) * 0.3);
 
-        SF._uORB_GAngel_Pitch += (SF._uORB_MPU9250_G_X / MPU9250_LSB) / MPUUpdateFreq;
-        SF._uORB_GAngel__Roll += (SF._uORB_MPU9250_G_Y / MPU9250_LSB) / MPUUpdateFreq;
-        SF._uORB_GAngel_Pitch -= SF._uORB_GAngel__Roll * sin((SF._uORB_Gryo___Yaw / MPUUpdateFreq / MPU9250_LSB) * (3.14 / 180));
-        SF._uORB_GAngel__Roll += SF._uORB_GAngel_Pitch * sin((SF._uORB_Gryo___Yaw / MPUUpdateFreq / MPU9250_LSB) * (3.14 / 180));
+        SF->_uORB_Real_Pitch += (SF->_uORB_MPU9250_G_X / MPU9250_LSB) / MPUUpdateFreq;
+        SF->_uORB_Real__Roll += (SF->_uORB_MPU9250_G_Y / MPU9250_LSB) / MPUUpdateFreq;
+        SF->_uORB_Real_Pitch -= SF->_uORB_Real__Roll * sin((SF->_uORB_Gryo___Yaw / MPUUpdateFreq / MPU9250_LSB) * (3.14 / 180));
+        SF->_uORB_Real__Roll += SF->_uORB_Real_Pitch * sin((SF->_uORB_Gryo___Yaw / MPUUpdateFreq / MPU9250_LSB) * (3.14 / 180));
 
-        SF._uORB_IMU_Accel_Vector = sqrt((SF._uORB_MPU9250_A_X * SF._uORB_MPU9250_A_X) + (SF._uORB_MPU9250_A_Y * SF._uORB_MPU9250_A_Y) + (SF._uORB_MPU9250_A_Z * SF._uORB_MPU9250_A_Z));
-        if (abs(SF._uORB_MPU9250_A_X) < SF._uORB_IMU_Accel_Vector)
-            SF._uORB_Accel__Roll = asin((float)SF._uORB_MPU9250_A_X / SF._uORB_IMU_Accel_Vector) * -57.296;
-        if (abs(SF._uORB_MPU9250_A_Y) < SF._uORB_IMU_Accel_Vector)
-            SF._uORB_Accel_Pitch = asin((float)SF._uORB_MPU9250_A_Y / SF._uORB_IMU_Accel_Vector) * 57.296;
+        SF->_uORB_IMU_Accel_Vector = sqrt((SF->_uORB_MPU9250_A_X * SF->_uORB_MPU9250_A_X) + (SF->_uORB_MPU9250_A_Y * SF->_uORB_MPU9250_A_Y) + (SF->_uORB_MPU9250_A_Z * SF->_uORB_MPU9250_A_Z));
+        if (abs(SF->_uORB_MPU9250_A_X) < SF->_uORB_IMU_Accel_Vector)
+            SF->_uORB_Accel__Roll = asin((float)SF->_uORB_MPU9250_A_X / SF->_uORB_IMU_Accel_Vector) * -57.296;
+        if (abs(SF->_uORB_MPU9250_A_Y) < SF->_uORB_IMU_Accel_Vector)
+            SF->_uORB_Accel_Pitch = asin((float)SF->_uORB_MPU9250_A_Y / SF->_uORB_IMU_Accel_Vector) * 57.296;
 
         if (MPU9250_MixFilterType == MPUMixTradition)
         {
-            SF._uORB_GAngel__Roll = SF._uORB_GAngel__Roll * MPUMixTraditionAplah + SF._uORB_Accel__Roll * (1.f - MPUMixTraditionAplah);
-            SF._uORB_GAngel_Pitch = SF._uORB_GAngel_Pitch * MPUMixTraditionAplah + SF._uORB_Accel_Pitch * (1.f - MPUMixTraditionAplah);
+            SF->_uORB_Real__Roll = SF->_uORB_Real__Roll * MPUMixTraditionAplah + SF->_uORB_Accel__Roll * (1.f - MPUMixTraditionAplah);
+            SF->_uORB_Real_Pitch = SF->_uORB_Real_Pitch * MPUMixTraditionAplah + SF->_uORB_Accel_Pitch * (1.f - MPUMixTraditionAplah);
         }
         else if (MPU9250_MixFilterType == MPUMixKalman)
         {
@@ -140,12 +142,12 @@ public:
 
     inline void ResetMPUMixAngle()
     {
-        SF._uORB_GAngel__Roll = SF._uORB_Accel__Roll;
-        SF._uORB_GAngel_Pitch = SF._uORB_Accel_Pitch;
+        SF->_uORB_Real__Roll = SF->_uORB_Accel__Roll;
+        SF->_uORB_Real_Pitch = SF->_uORB_Accel_Pitch;
     }
 
 private:
-    MPUData SF;
+    MPUData *SF;
     int MPU9250_fd;
     int MPUUpdateFreq = 250;
     float MPU9250_LSB = 65.5;
@@ -165,39 +167,39 @@ private:
         {
             Tmp_MPU9250_Buffer[0] = wiringPiI2CReadReg8(MPU9250_fd, 0x3B);
             Tmp_MPU9250_Buffer[1] = wiringPiI2CReadReg8(MPU9250_fd, 0x3C);
-            SF._uORB_MPU9250_A_X = (short)(Tmp_MPU9250_Buffer[0] << 8 | Tmp_MPU9250_Buffer[1]);
+            SF->_uORB_MPU9250_A_X = (short)(Tmp_MPU9250_Buffer[0] << 8 | Tmp_MPU9250_Buffer[1]);
             Tmp_MPU9250_Buffer[2] = wiringPiI2CReadReg8(MPU9250_fd, 0x3D);
             Tmp_MPU9250_Buffer[3] = wiringPiI2CReadReg8(MPU9250_fd, 0x3E);
-            SF._uORB_MPU9250_A_Y = (short)(Tmp_MPU9250_Buffer[2] << 8 | Tmp_MPU9250_Buffer[3]);
+            SF->_uORB_MPU9250_A_Y = (short)(Tmp_MPU9250_Buffer[2] << 8 | Tmp_MPU9250_Buffer[3]);
             Tmp_MPU9250_Buffer[4] = wiringPiI2CReadReg8(MPU9250_fd, 0x3F);
             Tmp_MPU9250_Buffer[5] = wiringPiI2CReadReg8(MPU9250_fd, 0x40);
-            SF._uORB_MPU9250_A_Z = (short)(Tmp_MPU9250_Buffer[4] << 8 | Tmp_MPU9250_Buffer[5]);
+            SF->_uORB_MPU9250_A_Z = (short)(Tmp_MPU9250_Buffer[4] << 8 | Tmp_MPU9250_Buffer[5]);
 
             Tmp_MPU9250_Buffer[6] = wiringPiI2CReadReg8(MPU9250_fd, 0x43);
             Tmp_MPU9250_Buffer[7] = wiringPiI2CReadReg8(MPU9250_fd, 0x44);
-            SF._uORB_MPU9250_G_X = (short)(Tmp_MPU9250_Buffer[6] << 8 | Tmp_MPU9250_Buffer[7]);
+            SF->_uORB_MPU9250_G_X = (short)(Tmp_MPU9250_Buffer[6] << 8 | Tmp_MPU9250_Buffer[7]);
             Tmp_MPU9250_Buffer[8] = wiringPiI2CReadReg8(MPU9250_fd, 0x45);
             Tmp_MPU9250_Buffer[9] = wiringPiI2CReadReg8(MPU9250_fd, 0x46);
-            SF._uORB_MPU9250_G_Y = (short)(Tmp_MPU9250_Buffer[8] << 8 | Tmp_MPU9250_Buffer[9]);
+            SF->_uORB_MPU9250_G_Y = (short)(Tmp_MPU9250_Buffer[8] << 8 | Tmp_MPU9250_Buffer[9]);
             Tmp_MPU9250_Buffer[10] = wiringPiI2CReadReg8(MPU9250_fd, 0x47);
             Tmp_MPU9250_Buffer[11] = wiringPiI2CReadReg8(MPU9250_fd, 0x48);
-            SF._uORB_MPU9250_G_Z = (short)(Tmp_MPU9250_Buffer[10] << 8 | Tmp_MPU9250_Buffer[11]);
+            SF->_uORB_MPU9250_G_Z = (short)(Tmp_MPU9250_Buffer[10] << 8 | Tmp_MPU9250_Buffer[11]);
         }
         else if (MPU9250_Type == MPUTypeSPI)
         {
             Tmp_MPU9250_SPI_Buffer[0] = 0xBB;
             wiringPiSPIDataRW(MPU9250_SPI_Channel, Tmp_MPU9250_SPI_Buffer, 21);
-            SF._uORB_MPU9250_A_X = (short)((int)Tmp_MPU9250_SPI_Buffer[1] << 8 | (int)Tmp_MPU9250_SPI_Buffer[2]);
-            SF._uORB_MPU9250_A_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[3] << 8 | (int)Tmp_MPU9250_SPI_Buffer[4]);
-            SF._uORB_MPU9250_A_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[5] << 8 | (int)Tmp_MPU9250_SPI_Buffer[6]);
+            SF->_uORB_MPU9250_A_X = (short)((int)Tmp_MPU9250_SPI_Buffer[1] << 8 | (int)Tmp_MPU9250_SPI_Buffer[2]);
+            SF->_uORB_MPU9250_A_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[3] << 8 | (int)Tmp_MPU9250_SPI_Buffer[4]);
+            SF->_uORB_MPU9250_A_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[5] << 8 | (int)Tmp_MPU9250_SPI_Buffer[6]);
 
-            SF._uORB_MPU9250_G_X = (short)((int)Tmp_MPU9250_SPI_Buffer[9] << 8 | (int)Tmp_MPU9250_SPI_Buffer[10]);
-            SF._uORB_MPU9250_G_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[11] << 8 | (int)Tmp_MPU9250_SPI_Buffer[12]);
-            SF._uORB_MPU9250_G_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[13] << 8 | (int)Tmp_MPU9250_SPI_Buffer[14]);
+            SF->_uORB_MPU9250_G_X = (short)((int)Tmp_MPU9250_SPI_Buffer[9] << 8 | (int)Tmp_MPU9250_SPI_Buffer[10]);
+            SF->_uORB_MPU9250_G_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[11] << 8 | (int)Tmp_MPU9250_SPI_Buffer[12]);
+            SF->_uORB_MPU9250_G_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[13] << 8 | (int)Tmp_MPU9250_SPI_Buffer[14]);
 
-            SF._uORB_MPU9250_M_X = (short)((int)Tmp_MPU9250_SPI_Buffer[16] << 8) | (int)Tmp_MPU9250_SPI_Buffer[15];
-            SF._uORB_MPU9250_M_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[18] << 8) | (int)Tmp_MPU9250_SPI_Buffer[17];
-            SF._uORB_MPU9250_M_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[20] << 8) | (int)Tmp_MPU9250_SPI_Buffer[19];
+            SF->_uORB_MPU9250_M_X = (short)((int)Tmp_MPU9250_SPI_Buffer[16] << 8) | (int)Tmp_MPU9250_SPI_Buffer[15];
+            SF->_uORB_MPU9250_M_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[18] << 8) | (int)Tmp_MPU9250_SPI_Buffer[17];
+            SF->_uORB_MPU9250_M_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[20] << 8) | (int)Tmp_MPU9250_SPI_Buffer[19];
         }
     }
 };
