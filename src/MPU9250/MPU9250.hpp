@@ -1,13 +1,15 @@
-#ifdef DEBUG
-#include <iostream>
-#endif
-#include <ctime>
 #include <math.h>
+#include <unistd.h>
 #include <wiringPi.h>
 #include <wiringPiI2C.h>
 #include <wiringPiSPI.h>
 #define MPUTypeI2C 0
 #define MPUTypeSPI 1
+
+#define MPUMixKalman 1
+#define MPUMixTradition 0
+
+#define MPUMixTraditionAplah 0.9996
 
 struct MPUData
 {
@@ -21,28 +23,35 @@ struct MPUData
     int _uORB_MPU9250_M_Y = 0;
     int _uORB_MPU9250_M_Z = 0;
 
+    int _uORB_IMU_Accel_Vector = 0;
     float _uORB_Gryo__Roll = 0;
     float _uORB_Gryo_Pitch = 0;
     float _uORB_Gryo___Yaw = 0;
-    float _uORB_Real__Roll = 0;
-    float _uORB_Real_Pitch = 0;
+    float _uORB_GAngel__Roll = 0;
+    float _uORB_GAngel_Pitch = 0;
     float _uORB_Accel__Roll = 0;
     float _uORB_Accel_Pitch = 0;
+
+    float _flag_MPU9250_G_X_Cali = 0;
+    float _flag_MPU9250_G_Y_Cali = 0;
+    float _flag_MPU9250_G_Z_Cali = 0;
 };
 
 class RPiMPU9250
 {
 public:
-    inline RPiMPU9250(int Type = MPUTypeSPI, bool IsBuildInCompassEnable = true,
-                      int MPUSPIChannel = 1, unsigned char MPUI2CAddr = 0x68, int UpdateFreq = 250)
+    inline RPiMPU9250(int Type = MPUTypeSPI, bool IsBuildInCompassEnable = false,
+                      int MPUSPIChannel = 1, unsigned char MPUI2CAddr = 0x68, int UpdateFreq = 250,
+                      int MixFilterType = MPUMixTradition)
     {
         MPU9250_Type = Type;
         MPUUpdateFreq = UpdateFreq;
         MPU9250_I2CAddr = MPU9250_I2CAddr;
         MPU9250_SPI_Channel = MPUSPIChannel;
+        MPU9250_MixFilterType = MixFilterType;
         CompassEnable = IsBuildInCompassEnable;
 
-        if (Type == MPUTypeI2C)
+        if (Type == MPUTypeSPI)
         {
             MPU9250_fd = wiringPiSPISetup(MPU9250_SPI_Channel, MPU9250_SPI_Freq);
             MPU9250_SPI_Config[0] = 0x6b;
@@ -74,37 +83,78 @@ public:
         }
     };
 
+    inline int MPUGryoCalibration()
+    {
+        SF._flag_MPU9250_G_X_Cali = 0;
+        SF._flag_MPU9250_G_Y_Cali = 0;
+        SF._flag_MPU9250_G_Z_Cali = 0;
+        for (int cali_count = 0; cali_count < 2000; cali_count++)
+        {
+            IMUSensorsDataRead();
+            SF._flag_MPU9250_G_X_Cali += SF._uORB_MPU9250_G_X;
+            SF._flag_MPU9250_G_Y_Cali += SF._uORB_MPU9250_G_Y;
+            SF._flag_MPU9250_G_Z_Cali += SF._uORB_MPU9250_G_Z;
+            usleep(500);
+        }
+        SF._flag_MPU9250_G_X_Cali = SF._flag_MPU9250_G_X_Cali / 2000;
+        SF._flag_MPU9250_G_Y_Cali = SF._flag_MPU9250_G_Y_Cali / 2000;
+        SF._flag_MPU9250_G_Z_Cali = SF._flag_MPU9250_G_Z_Cali / 2000;
+
+        return 0;
+    };
+
     inline MPUData MPUSensorsDataGet()
     {
+        IMUSensorsDataRead();
+        SF._uORB_MPU9250_G_X -= SF._flag_MPU9250_G_X_Cali;
+        SF._uORB_MPU9250_G_Y -= SF._flag_MPU9250_G_Y_Cali;
+        SF._uORB_MPU9250_G_Z -= SF._flag_MPU9250_G_Z_Cali;
+
         SF._uORB_Gryo_Pitch = (SF._uORB_Gryo_Pitch * 0.7) + ((SF._uORB_MPU9250_G_X / MPU9250_LSB) * 0.3);
         SF._uORB_Gryo__Roll = (SF._uORB_Gryo__Roll * 0.7) + ((SF._uORB_MPU9250_G_Y / MPU9250_LSB) * 0.3);
         SF._uORB_Gryo___Yaw = (SF._uORB_Gryo___Yaw * 0.7) + ((SF._uORB_MPU9250_G_Z / MPU9250_LSB) * 0.3);
 
-        SF._uORB_Real_Pitch += (SF._uORB_MPU9250_G_X / MPU9250_LSB) / MPUUpdateFreq;
-        SF._uORB_Real__Roll += (SF._uORB_MPU9250_G_Y / MPU9250_LSB) / MPUUpdateFreq;
-        SF._uORB_Real_Pitch -= SF._uORB_Real__Roll * sin((SF._uORB_Gryo___Yaw / MPUUpdateFreq / MPU9250_LSB) * (3.14 / 180));
-        SF._uORB_Real__Roll += SF._uORB_Real_Pitch * sin((SF._uORB_Gryo___Yaw / MPUUpdateFreq / MPU9250_LSB) * (3.14 / 180));
+        SF._uORB_GAngel_Pitch += (SF._uORB_MPU9250_G_X / MPU9250_LSB) / MPUUpdateFreq;
+        SF._uORB_GAngel__Roll += (SF._uORB_MPU9250_G_Y / MPU9250_LSB) / MPUUpdateFreq;
+        SF._uORB_GAngel_Pitch -= SF._uORB_GAngel__Roll * sin((SF._uORB_Gryo___Yaw / MPUUpdateFreq / MPU9250_LSB) * (3.14 / 180));
+        SF._uORB_GAngel__Roll += SF._uORB_GAngel_Pitch * sin((SF._uORB_Gryo___Yaw / MPUUpdateFreq / MPU9250_LSB) * (3.14 / 180));
 
-        // SF._Tmp_IMU_Accel_Vector = sqrt((SF._uORB_MPU9250_A_X * SF._uORB_MPU9250_A_X) + (SF._uORB_MPU9250_A_Y * SF._uORB_MPU9250_A_Y) + (SF._uORB_MPU9250_A_Z * SF._uORB_MPU9250_A_Z));
-        // if (abs(SF._uORB_MPU9250_A_X) < SF._Tmp_IMU_Accel_Vector)
-        //     SF._uORB_Accel__Roll = asin((float)SF._uORB_MPU9250_A_X / SF._Tmp_IMU_Accel_Vector) * -57.296;
-        // if (abs(SF._uORB_MPU9250_A_Y) < SF._Tmp_IMU_Accel_Vector)
-        //     SF._uORB_Accel_Pitch = asin((float)SF._uORB_MPU9250_A_Y / SF._Tmp_IMU_Accel_Vector) * 57.296;
-        // SF._uORB_Accel__Roll -= SF._flag_Accel__Roll_Cali;
+        SF._uORB_IMU_Accel_Vector = sqrt((SF._uORB_MPU9250_A_X * SF._uORB_MPU9250_A_X) + (SF._uORB_MPU9250_A_Y * SF._uORB_MPU9250_A_Y) + (SF._uORB_MPU9250_A_Z * SF._uORB_MPU9250_A_Z));
+        if (abs(SF._uORB_MPU9250_A_X) < SF._uORB_IMU_Accel_Vector)
+            SF._uORB_Accel__Roll = asin((float)SF._uORB_MPU9250_A_X / SF._uORB_IMU_Accel_Vector) * -57.296;
+        if (abs(SF._uORB_MPU9250_A_Y) < SF._uORB_IMU_Accel_Vector)
+            SF._uORB_Accel_Pitch = asin((float)SF._uORB_MPU9250_A_Y / SF._uORB_IMU_Accel_Vector) * 57.296;
 
+        if (MPU9250_MixFilterType == MPUMixTradition)
+        {
+            SF._uORB_GAngel__Roll = SF._uORB_GAngel__Roll * MPUMixTraditionAplah + SF._uORB_Accel__Roll * (1.f - MPUMixTraditionAplah);
+            SF._uORB_GAngel_Pitch = SF._uORB_GAngel_Pitch * MPUMixTraditionAplah + SF._uORB_Accel_Pitch * (1.f - MPUMixTraditionAplah);
+        }
+        else if (MPU9250_MixFilterType == MPUMixKalman)
+        {
+            //
+            //
+        }
         return SF;
+    }
+
+    inline void ResetMPUMixAngle()
+    {
+        SF._uORB_GAngel__Roll = SF._uORB_Accel__Roll;
+        SF._uORB_GAngel_Pitch = SF._uORB_Accel_Pitch;
     }
 
 private:
     MPUData SF;
     int MPU9250_fd;
-    int MPU9250_Type;
-    bool CompassEnable;
     int MPUUpdateFreq = 250;
     float MPU9250_LSB = 65.5;
+    bool CompassEnable = false;
     int MPU9250_I2CAddr = 0x68;
-    int MPU9250_SPI_Freq = 400;
     int MPU9250_SPI_Channel = 1;
+    int MPU9250_Type = MPUTypeSPI;
+    int MPU9250_SPI_Freq = 10000000;
+    int MPU9250_MixFilterType = MPUMixTradition;
     unsigned char MPU9250_SPI_Config[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     unsigned char Tmp_MPU9250_Buffer[14] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     unsigned char Tmp_MPU9250_SPI_Buffer[14] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
