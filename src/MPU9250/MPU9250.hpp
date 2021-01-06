@@ -6,30 +6,40 @@
 #define MPUTypeI2C 0
 #define MPUTypeSPI 1
 
-#define MPULPFAplah 0.02
+#define MPULPFAplah 0.2
 
 #define MPUMixKalman 1
 #define MPUMixTradition 0
 
-#define MPUMixTraditionAplah 0.996
+#define MPUMixTraditionAplah 0.9996
 
 struct MPUData
 {
     int _uORB_MPU9250_A_X = 0;
     int _uORB_MPU9250_A_Y = 0;
     int _uORB_MPU9250_A_Z = 0;
-    int _uORB_MPU9250_AF_X = 0;
-    int _uORB_MPU9250_AF_Y = 0;
-    int _uORB_MPU9250_AF_Z = 0;
-    int _uORB_MPU9250_AFQ_X = 0;
-    int _uORB_MPU9250_AFQ_Y = 0;
-    int _uORB_MPU9250_AFQ_Z = 0;
     int _uORB_MPU9250_G_X = 0;
     int _uORB_MPU9250_G_Y = 0;
     int _uORB_MPU9250_G_Z = 0;
     int _uORB_MPU9250_M_X = 0;
     int _uORB_MPU9250_M_Y = 0;
     int _uORB_MPU9250_M_Z = 0;
+
+    int _uORB_MPU9250_AF_X = 0;
+    int _uORB_MPU9250_AF_Y = 0;
+    int _uORB_MPU9250_AF_Z = 0;
+    int _uORB_MPU9250_AFQ_X = 0;
+    int _uORB_MPU9250_AFQ_Y = 0;
+    int _uORB_MPU9250_AFQ_Z = 0;
+
+    double _uORB_MPU9250_Accel_Angle_X = 0;
+    double _uORB_MPU9250_Accel_Angle_Y = 0;
+    double _uORB_MPU9250_Accel_Vector_X = 0;
+    double _uORB_MPU9250_Accel_Vector_Y = 0;
+
+    double _uORB_MPU9250_Accel_To_Static_X = 0;
+    double _uORB_MPU9250_Accel_To_Static_Y = 0;
+    double _uORB_MPU9250_Accel_Static_Vector = 4250;
 
     int _uORB_IMU_Accel_Vector = 0;
     float _uORB_Gryo__Roll = 0;
@@ -124,8 +134,8 @@ public:
 
         PrivateData._uORB_Real_Pitch += (PrivateData._uORB_MPU9250_G_X / MPU9250_LSB) / MPUUpdateFreq;
         PrivateData._uORB_Real__Roll += (PrivateData._uORB_MPU9250_G_Y / MPU9250_LSB) / MPUUpdateFreq;
-        PrivateData._uORB_Real_Pitch -= PrivateData._uORB_Real__Roll * sin((PrivateData._uORB_Gryo___Yaw / MPUUpdateFreq / MPU9250_LSB) * (3.14 / 180));
-        PrivateData._uORB_Real__Roll += PrivateData._uORB_Real_Pitch * sin((PrivateData._uORB_Gryo___Yaw / MPUUpdateFreq / MPU9250_LSB) * (3.14 / 180));
+        PrivateData._uORB_Real_Pitch += PrivateData._uORB_Real__Roll * sin((PrivateData._uORB_MPU9250_G_Z / MPUUpdateFreq / MPU9250_LSB) * (3.14 / 180));
+        PrivateData._uORB_Real__Roll -= PrivateData._uORB_Real_Pitch * sin((PrivateData._uORB_MPU9250_G_Z / MPUUpdateFreq / MPU9250_LSB) * (3.14 / 180));
 
         PrivateData._uORB_MPU9250_AF_X += (PrivateData._uORB_MPU9250_A_X - PrivateData._uORB_MPU9250_AF_X) * MPULPFAplah;
         PrivateData._uORB_MPU9250_AF_Y += (PrivateData._uORB_MPU9250_A_Y - PrivateData._uORB_MPU9250_AF_Y) * MPULPFAplah;
@@ -151,6 +161,18 @@ public:
             PrivateData._uORB_Accel__Roll = asin((float)PrivateData._uORB_MPU9250_AFQ_X / PrivateData._uORB_IMU_Accel_Vector) * -57.296;
         if (abs(PrivateData._uORB_MPU9250_AFQ_Y) < PrivateData._uORB_IMU_Accel_Vector)
             PrivateData._uORB_Accel_Pitch = asin((float)PrivateData._uORB_MPU9250_AFQ_Y / PrivateData._uORB_IMU_Accel_Vector) * 57.296;
+
+        double _uORB_MPU9250_Accel_To_Static_X = sin(PrivateData._uORB_Real__Roll * (3.14 / 180) * -1) * PrivateData._uORB_MPU9250_Accel_Static_Vector;
+        double _uORB_MPU9250_Accel_To_Static_Y = sin(PrivateData._uORB_Real_Pitch * (3.14 / 180)) * PrivateData._uORB_MPU9250_Accel_Static_Vector;
+        PrivateData._uORB_MPU9250_Accel_To_Static_X = _uORB_MPU9250_Accel_To_Static_X - PrivateData._uORB_MPU9250_AFQ_X;
+        PrivateData._uORB_MPU9250_Accel_To_Static_Y = _uORB_MPU9250_Accel_To_Static_Y - PrivateData._uORB_MPU9250_AFQ_Y;
+
+        PrivateData._uORB_MPU9250_Accel_Vector_X = sqrt((PrivateData._uORB_MPU9250_AFQ_X * PrivateData._uORB_MPU9250_AFQ_X) + (PrivateData._uORB_MPU9250_AFQ_Z * PrivateData._uORB_MPU9250_AFQ_Z));
+        if (abs(PrivateData._uORB_MPU9250_AFQ_X) < PrivateData._uORB_MPU9250_Accel_Vector_X)
+            PrivateData._uORB_MPU9250_Accel_Angle_X = asin((float)PrivateData._uORB_MPU9250_AFQ_X / PrivateData._uORB_MPU9250_Accel_Vector_X) * -57.296;
+        PrivateData._uORB_MPU9250_Accel_Vector_Y = sqrt((PrivateData._uORB_MPU9250_AFQ_Y * PrivateData._uORB_MPU9250_AFQ_Y) + (PrivateData._uORB_MPU9250_AFQ_Z * PrivateData._uORB_MPU9250_AFQ_Z));
+        if (abs(PrivateData._uORB_MPU9250_AFQ_Y) < PrivateData._uORB_MPU9250_Accel_Vector_Y)
+            PrivateData._uORB_MPU9250_Accel_Angle_Y = asin((float)PrivateData._uORB_MPU9250_AFQ_Y / PrivateData._uORB_MPU9250_Accel_Vector_Y) * 57.296;
 
         if (MPU9250_MixFilterType == MPUMixTradition)
         {
@@ -228,6 +250,8 @@ private:
     unsigned char Tmp_MPU9250_Buffer[20] = {0};
     unsigned char Tmp_MPU9250_SPI_Buffer[20] = {0};
     MPUData PrivateData;
+
+    int MPU9250_Accel_Static_Vector = 4200;
 
     int MPU9250_Accel_Square_X[60] = {0};
     double MPU9250_Accel_Square_X_Total = 0;
