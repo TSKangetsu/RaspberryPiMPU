@@ -158,7 +158,7 @@ public:
 
         PrivateData._uORB_IMU_Accel_Vector = sqrt((PrivateData._uORB_MPU9250_AFQ_X * PrivateData._uORB_MPU9250_AFQ_X) + (PrivateData._uORB_MPU9250_AFQ_Y * PrivateData._uORB_MPU9250_AFQ_Y) + (PrivateData._uORB_MPU9250_AFQ_Z * PrivateData._uORB_MPU9250_AFQ_Z));
         if (abs(PrivateData._uORB_MPU9250_AFQ_X) < PrivateData._uORB_IMU_Accel_Vector)
-            PrivateData._uORB_Accel__Roll = asin((float)PrivateData._uORB_MPU9250_AFQ_X / PrivateData._uORB_IMU_Accel_Vector) * -57.296;
+            PrivateData._uORB_Accel__Roll = asin((float)PrivateData._uORB_MPU9250_AFQ_X / PrivateData._uORB_IMU_Accel_Vector) * 57.296;
         if (abs(PrivateData._uORB_MPU9250_AFQ_Y) < PrivateData._uORB_IMU_Accel_Vector)
             PrivateData._uORB_Accel_Pitch = asin((float)PrivateData._uORB_MPU9250_AFQ_Y / PrivateData._uORB_IMU_Accel_Vector) * 57.296;
 
@@ -169,7 +169,7 @@ public:
 
         PrivateData._uORB_MPU9250_Accel_Vector_X = sqrt((PrivateData._uORB_MPU9250_AFQ_X * PrivateData._uORB_MPU9250_AFQ_X) + (PrivateData._uORB_MPU9250_AFQ_Z * PrivateData._uORB_MPU9250_AFQ_Z));
         if (abs(PrivateData._uORB_MPU9250_AFQ_X) < PrivateData._uORB_MPU9250_Accel_Vector_X)
-            PrivateData._uORB_MPU9250_Accel_Angle_X = asin((float)PrivateData._uORB_MPU9250_AFQ_X / PrivateData._uORB_MPU9250_Accel_Vector_X) * -57.296;
+            PrivateData._uORB_MPU9250_Accel_Angle_X = asin((float)PrivateData._uORB_MPU9250_AFQ_X / PrivateData._uORB_MPU9250_Accel_Vector_X) * 57.296;
         PrivateData._uORB_MPU9250_Accel_Vector_Y = sqrt((PrivateData._uORB_MPU9250_AFQ_Y * PrivateData._uORB_MPU9250_AFQ_Y) + (PrivateData._uORB_MPU9250_AFQ_Z * PrivateData._uORB_MPU9250_AFQ_Z));
         if (abs(PrivateData._uORB_MPU9250_AFQ_Y) < PrivateData._uORB_MPU9250_Accel_Vector_Y)
             PrivateData._uORB_MPU9250_Accel_Angle_Y = asin((float)PrivateData._uORB_MPU9250_AFQ_Y / PrivateData._uORB_MPU9250_Accel_Vector_Y) * 57.296;
@@ -201,7 +201,7 @@ private:
         {
             Tmp_MPU9250_Buffer[0] = wiringPiI2CReadReg8(MPU9250_fd, 0x3B);
             Tmp_MPU9250_Buffer[1] = wiringPiI2CReadReg8(MPU9250_fd, 0x3C);
-            PrivateData._uORB_MPU9250_A_X = (short)(Tmp_MPU9250_Buffer[0] << 8 | Tmp_MPU9250_Buffer[1]);
+            PrivateData._uORB_MPU9250_A_X = (short)(Tmp_MPU9250_Buffer[0] << 8 | Tmp_MPU9250_Buffer[1]) * -1;
             Tmp_MPU9250_Buffer[2] = wiringPiI2CReadReg8(MPU9250_fd, 0x3D);
             Tmp_MPU9250_Buffer[3] = wiringPiI2CReadReg8(MPU9250_fd, 0x3E);
             PrivateData._uORB_MPU9250_A_Y = (short)(Tmp_MPU9250_Buffer[2] << 8 | Tmp_MPU9250_Buffer[3]);
@@ -223,7 +223,8 @@ private:
         {
             Tmp_MPU9250_SPI_Buffer[0] = 0xBB;
             wiringPiSPIDataRW(MPU9250_SPI_Channel, Tmp_MPU9250_SPI_Buffer, 21);
-            PrivateData._uORB_MPU9250_A_X = (short)((int)Tmp_MPU9250_SPI_Buffer[1] << 8 | (int)Tmp_MPU9250_SPI_Buffer[2]);
+            PrivateData._uORB_MPU9250_A_X = (short)((int)Tmp_MPU9250_SPI_Buffer[1] << 8 | (int)Tmp_MPU9250_SPI_Buffer[2]) * -1;
+            ;
             PrivateData._uORB_MPU9250_A_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[3] << 8 | (int)Tmp_MPU9250_SPI_Buffer[4]);
             PrivateData._uORB_MPU9250_A_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[5] << 8 | (int)Tmp_MPU9250_SPI_Buffer[6]);
 
