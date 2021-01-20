@@ -8,7 +8,7 @@ int main(int argc, char const *argv[])
     wiringPiSetupSys();
     MPUData myData;
     RPiMPU9250 *myMPUTest = new RPiMPU9250(); //
-    myMPUTest->MPUGryoCalibration();
+    myMPUTest->MPUCalibration();
     myMPUTest->MPUSensorsDataGet();
     myMPUTest->ResetMPUMixAngle();
 
