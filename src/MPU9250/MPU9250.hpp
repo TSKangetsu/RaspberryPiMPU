@@ -134,6 +134,8 @@ public:
         }
     };
 
+    // Gryo must be Calibration Before Get MPU Data, This Function Require a Correctly Accel Calibration
+    // See TestModule.cpp
     inline int MPUCalibration(double *AccelCaliData)
     {
         PrivateData._flag_MPU9250_A_X_Scal = AccelCaliData[MPUAccelScalX];
@@ -169,46 +171,49 @@ public:
         return 0;
     };
 
-    inline void MPUAccelCalibration(int AccelCali, double *AccelCaliTmp)
+    // Calibration MPU Accel Sensor , See TestMoodule.cpp
+    inline void MPUAccelCalibration(int AccelCaliAction, double *AccelCaliData)
     {
         int AccelCaliTmpTotal = 0;
         for (int cali_count = 0; cali_count < 1000; cali_count++)
         {
             IMUSensorsDataRead();
-            switch (AccelCali)
+            switch (AccelCaliAction)
             {
             case (MPUAccelNoseUp):
-                AccelCaliTmp[AccelCali] = AccelCaliTmp[AccelCali] < PrivateData._uORB_MPU9250_A_Y ? PrivateData._uORB_MPU9250_A_Y : AccelCaliTmp[AccelCali];
+                AccelCaliData[AccelCaliAction] = AccelCaliData[AccelCaliAction] < PrivateData._uORB_MPU9250_A_Y ? PrivateData._uORB_MPU9250_A_Y : AccelCaliData[AccelCaliAction];
                 break;
             case MPUAccelNoseDown:
-                AccelCaliTmp[AccelCali] = AccelCaliTmp[AccelCali] > PrivateData._uORB_MPU9250_A_Y ? PrivateData._uORB_MPU9250_A_Y : AccelCaliTmp[AccelCali];
+                AccelCaliData[AccelCaliAction] = AccelCaliData[AccelCaliAction] > PrivateData._uORB_MPU9250_A_Y ? PrivateData._uORB_MPU9250_A_Y : AccelCaliData[AccelCaliAction];
                 break;
             case MPUAccelNoseRight:
-                AccelCaliTmp[AccelCali] = AccelCaliTmp[AccelCali] > PrivateData._uORB_MPU9250_A_X ? PrivateData._uORB_MPU9250_A_X : AccelCaliTmp[AccelCali];
+                AccelCaliData[AccelCaliAction] = AccelCaliData[AccelCaliAction] > PrivateData._uORB_MPU9250_A_X ? PrivateData._uORB_MPU9250_A_X : AccelCaliData[AccelCaliAction];
                 break;
             case MPUAccelNoseLeft:
-                AccelCaliTmp[AccelCali] = AccelCaliTmp[AccelCali] < PrivateData._uORB_MPU9250_A_X ? PrivateData._uORB_MPU9250_A_X : AccelCaliTmp[AccelCali];
+                AccelCaliData[AccelCaliAction] = AccelCaliData[AccelCaliAction] < PrivateData._uORB_MPU9250_A_X ? PrivateData._uORB_MPU9250_A_X : AccelCaliData[AccelCaliAction];
                 break;
             case MPUAccelNoseTop:
-                AccelCaliTmp[AccelCali] = AccelCaliTmp[AccelCali] < PrivateData._uORB_MPU9250_A_Z ? PrivateData._uORB_MPU9250_A_Z : AccelCaliTmp[AccelCali];
+                AccelCaliData[AccelCaliAction] = AccelCaliData[AccelCaliAction] < PrivateData._uORB_MPU9250_A_Z ? PrivateData._uORB_MPU9250_A_Z : AccelCaliData[AccelCaliAction];
                 break;
             case MPUAccelNoseRev:
-                AccelCaliTmp[AccelCali] = AccelCaliTmp[AccelCali] > PrivateData._uORB_MPU9250_A_Z ? PrivateData._uORB_MPU9250_A_Z : AccelCaliTmp[AccelCali];
+                AccelCaliData[AccelCaliAction] = AccelCaliData[AccelCaliAction] > PrivateData._uORB_MPU9250_A_Z ? PrivateData._uORB_MPU9250_A_Z : AccelCaliData[AccelCaliAction];
                 break;
             }
             usleep((int)(1.f / (float)MPUUpdateFreq * 1000000.f));
         }
-        if (AccelCali == MPUAccelCaliGet)
+        if (AccelCaliAction == MPUAccelCaliGet)
         {
-            AccelCaliTmp[MPUAccelCaliX] = (AccelCaliTmp[MPUAccelNoseRight] + AccelCaliTmp[MPUAccelNoseLeft]) / 2.f;
-            AccelCaliTmp[MPUAccelCaliY] = (AccelCaliTmp[MPUAccelNoseUp] + AccelCaliTmp[MPUAccelNoseDown]) / 2.f;
-            AccelCaliTmp[MPUAccelCaliZ] = (AccelCaliTmp[MPUAccelNoseTop] + AccelCaliTmp[MPUAccelNoseRev]) / 2.f;
-            AccelCaliTmp[MPUAccelScalX] = MPUGStandard / (AccelCaliTmp[MPUAccelNoseLeft] - AccelCaliTmp[7]);
-            AccelCaliTmp[MPUAccelScalY] = MPUGStandard / (AccelCaliTmp[MPUAccelNoseUp] - AccelCaliTmp[8]);
-            AccelCaliTmp[MPUAccelScalZ] = MPUGStandard / (AccelCaliTmp[MPUAccelNoseTop] - AccelCaliTmp[9]);
+            AccelCaliData[MPUAccelCaliX] = (AccelCaliData[MPUAccelNoseRight] + AccelCaliData[MPUAccelNoseLeft]) / 2.f;
+            AccelCaliData[MPUAccelCaliY] = (AccelCaliData[MPUAccelNoseUp] + AccelCaliData[MPUAccelNoseDown]) / 2.f;
+            AccelCaliData[MPUAccelCaliZ] = (AccelCaliData[MPUAccelNoseTop] + AccelCaliData[MPUAccelNoseRev]) / 2.f;
+            AccelCaliData[MPUAccelScalX] = MPUGStandard / (AccelCaliData[MPUAccelNoseLeft] - AccelCaliData[7]);
+            AccelCaliData[MPUAccelScalY] = MPUGStandard / (AccelCaliData[MPUAccelNoseUp] - AccelCaliData[8]);
+            AccelCaliData[MPUAccelScalZ] = MPUGStandard / (AccelCaliData[MPUAccelNoseTop] - AccelCaliData[9]);
         }
     }
 
+    // Get MPU Data, If you want a Vibration Insensitive data , you need a Stable Loop
+    // See TestModule.cpp
     inline MPUData MPUSensorsDataGet()
     {
         IMUSensorsDataRead();
@@ -280,18 +285,18 @@ public:
                                                            (sin(PrivateData._uORB_Real_Pitch * (PI / 180.f)) * PrivateData._uORB_MPU9250_Accel_Static_Vector) *
                                                                (sin(PrivateData._uORB_Real_Pitch * (PI / 180.f)) * PrivateData._uORB_MPU9250_Accel_Static_Vector)) -
                                                       PrivateData._uORB_MPU9250_AFQ_Z;
-        PrivateData._uORB_MPU9250_Accel_Static_Angle_X = atan2(abs(PrivateData._uORB_MPU9250_Accel_To_Static_X), abs(PrivateData._uORB_MPU9250_Accel_To_Static_Z)) * 180 / PI;
-        PrivateData._uORB_MPU9250_Accel_Static_Angle_Y = atan2(abs(PrivateData._uORB_MPU9250_Accel_To_Static_Y), abs(PrivateData._uORB_MPU9250_Accel_To_Static_Z)) * 180 / PI;
+        PrivateData._uORB_MPU9250_Accel_Static_Angle_X = atan2(PrivateData._uORB_MPU9250_Accel_To_Static_X, PrivateData._uORB_MPU9250_Accel_To_Static_Z) * 180 / PI;
+        PrivateData._uORB_MPU9250_Accel_Static_Angle_Y = atan2(PrivateData._uORB_MPU9250_Accel_To_Static_Y, PrivateData._uORB_MPU9250_Accel_To_Static_Z) * 180 / PI;
 
         PrivateData._uORB_MPU9250_Accel_Static_X_Vector = PrivateData._uORB_MPU9250_Accel_To_Static_X / sin(PrivateData._uORB_MPU9250_Accel_Static_Angle_X * (PI / 180.f));
         PrivateData._uORB_MPU9250_Accel_Static_Y_Vector = PrivateData._uORB_MPU9250_Accel_To_Static_Y / sin(PrivateData._uORB_MPU9250_Accel_Static_Angle_Y * (PI / 180.f));
 
         PrivateData._uORB_MPU9250_A_Static_X = PrivateData._uORB_MPU9250_Accel_Static_X_Vector *
-                                               sin((abs(PrivateData._uORB_MPU9250_Accel_Static_Angle_X) + abs(PrivateData._uORB_Real__Roll)) * (PI / 180.f));
+                                               sin((PrivateData._uORB_MPU9250_Accel_Static_Angle_X + PrivateData._uORB_Real__Roll) * (PI / 180.f));
         PrivateData._uORB_MPU9250_A_Static_Y = PrivateData._uORB_MPU9250_Accel_Static_Y_Vector *
-                                               sin((abs(PrivateData._uORB_MPU9250_Accel_Static_Angle_Y) + abs(PrivateData._uORB_Real_Pitch)) * (PI / 180.f));
-        PrivateData._uORB_MPU9250_A_Static_Z = PrivateData._uORB_MPU9250_Accel_Static_X_Vector * cos((PrivateData._uORB_MPU9250_Accel_Static_Angle_X + abs(PrivateData._uORB_Real__Roll)) * (PI / 180.f));
-        PrivateData._uORB_MPU9250_A_Static_Z += PrivateData._uORB_MPU9250_Accel_Static_Y_Vector * cos((PrivateData._uORB_MPU9250_Accel_Static_Angle_Y + abs(PrivateData._uORB_Real_Pitch)) * (PI / 180.f));
+                                               sin((PrivateData._uORB_MPU9250_Accel_Static_Angle_Y + PrivateData._uORB_Real_Pitch) * (PI / 180.f));
+        PrivateData._uORB_MPU9250_A_Static_Z = PrivateData._uORB_MPU9250_Accel_Static_X_Vector * cos((PrivateData._uORB_MPU9250_Accel_Static_Angle_X + PrivateData._uORB_Real__Roll) * (PI / 180.f));
+        PrivateData._uORB_MPU9250_A_Static_Z += PrivateData._uORB_MPU9250_Accel_Static_Y_Vector * cos((PrivateData._uORB_MPU9250_Accel_Static_Angle_Y + PrivateData._uORB_Real_Pitch) * (PI / 180.f));
 
         if (MPU9250_MixFilterType == MPUMixTradition)
         {
@@ -307,6 +312,7 @@ public:
         return PrivateData;
     }
 
+    // This function set Total Angle to Accel Angle immediately , Require MPUSensorsDataGet() finish
     inline void ResetMPUMixAngle()
     {
         PrivateData._uORB_Real__Roll = PrivateData._uORB_Accel__Roll;
