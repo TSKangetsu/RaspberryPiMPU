@@ -21,10 +21,11 @@ int main(int argc, char *argv[])
     //
     MPUData myData;
     //
-    while ((argvs = getopt(argc, argv, "c:t:")) != -1)
+    while ((argvs = getopt(argc, argv, "c:t:h")) != -1)
     {
         switch (argvs)
         {
+
         case 'c':
         {
             std::cout << "Start MPU Calibration\n";
@@ -69,6 +70,7 @@ int main(int argc, char *argv[])
             configWrite("../MPUCali.json", "_flag_MPU9250_A_Z_Scal", tmp[MPUAccelScalZ]);
         }
         break;
+
         case 't':
         {
             double AccelCaliData[30];
@@ -121,6 +123,18 @@ int main(int argc, char *argv[])
             }
         }
         break;
+
+        case 'h':
+            std::cout << "Usage: 'RaspberryPiMPU [option] 1000' , 1000 is Loop Frequency time ,\n If on Raspberrpi4b and using SPI connection, it shuld be 1000";
+            std::cout << " OR Set to 250\n";
+            std::cout << "[option] -c to calibration accel and save to MPUCali.json , -t is start to check mpu data on console\n";
+            break;
+
+        default:
+            std::cout << "Usage: 'RaspberryPiMPU [option] 1000' , 1000 is Loop Frequency time ,\n If on Raspberrpi4b and using SPI connection, it shuld be 1000";
+            std::cout << " OR Set to 250\n";
+            std::cout << "[option] -c to calibration accel and save to MPUCali.json , -t is start to check mpu data on console\n";
+            break;
         }
     }
 }
