@@ -7,15 +7,8 @@
 #define PI 3.1415926
 #define MPUTypeI2C 0
 #define MPUTypeSPI 1
-
-#define MPUALPFAplah 0.96
-#define MPUGLPFAplah 0.7
-
 #define MPUMixKalman 1
 #define MPUMixTradition 0
-
-#define MPUMixTraditionAplah 0.9992
-
 #define MPUAccelNoseUp 0
 #define MPUAccelNoseDown 1
 #define MPUAccelNoseRight 2
@@ -29,6 +22,14 @@
 #define MPUAccelScalX 10
 #define MPUAccelScalY 11
 #define MPUAccelScalZ 12
+
+#define MPUALPFAplah 0.985
+#define MPUGLPFAplah 0.7
+#define MPUMixTraditionAplah 0.9992
+#define AccelAvaQ1 30.f
+#define AccelAvaQ2 5.f
+
+#define GravityAccel 9.80665
 #define MPUGStandard 4096.f
 
 struct MPUData
@@ -76,6 +77,9 @@ struct MPUData
     float _uORB_Real_Pitch = 0;
     float _uORB_Accel__Roll = 0;
     float _uORB_Accel_Pitch = 0;
+    float _uORB_Acceleration_X = 0;
+    float _uORB_Acceleration_Y = 0;
+    float _uORB_Acceleration_Z = 0;
 
     int _flag_MPU9250_G_X_Cali;
     int _flag_MPU9250_G_Y_Cali;
@@ -280,14 +284,14 @@ public:
         PrivateData._uORB_MPU9250_A_Y = PrivateData._uORB_MPU9250_A_Y * PrivateData._flag_MPU9250_A_Y_Scal - PrivateData._flag_MPU9250_A_Y_Cali;
         PrivateData._uORB_MPU9250_A_Z = PrivateData._uORB_MPU9250_A_Z * PrivateData._flag_MPU9250_A_Z_Scal - PrivateData._flag_MPU9250_A_Z_Cali;
 
-        PrivateData._uORB_Gryo_Pitch = (PrivateData._uORB_Gryo_Pitch * MPUGLPFAplah) + ((PrivateData._uORB_MPU9250_G_X / MPU9250_LSB) * (1.f - MPUGLPFAplah));
-        PrivateData._uORB_Gryo__Roll = (PrivateData._uORB_Gryo__Roll * MPUGLPFAplah) + ((PrivateData._uORB_MPU9250_G_Y / MPU9250_LSB) * (1.f - MPUGLPFAplah));
-        PrivateData._uORB_Gryo___Yaw = (PrivateData._uORB_Gryo___Yaw * MPUGLPFAplah) + ((PrivateData._uORB_MPU9250_G_Z / MPU9250_LSB) * (1.f - MPUGLPFAplah));
+        PrivateData._uORB_Gryo_Pitch = (PrivateData._uORB_Gryo_Pitch * MPUGLPFAplah) + ((PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB) * (1.f - MPUGLPFAplah));
+        PrivateData._uORB_Gryo__Roll = (PrivateData._uORB_Gryo__Roll * MPUGLPFAplah) + ((PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB) * (1.f - MPUGLPFAplah));
+        PrivateData._uORB_Gryo___Yaw = (PrivateData._uORB_Gryo___Yaw * MPUGLPFAplah) + ((PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB) * (1.f - MPUGLPFAplah));
 
-        PrivateData._uORB_Real_Pitch += (PrivateData._uORB_MPU9250_G_X / MPU9250_LSB) / MPUUpdateFreq;
-        PrivateData._uORB_Real__Roll += (PrivateData._uORB_MPU9250_G_Y / MPU9250_LSB) / MPUUpdateFreq;
-        PrivateData._uORB_Real_Pitch += PrivateData._uORB_Real__Roll * sin((PrivateData._uORB_MPU9250_G_Z / MPUUpdateFreq / MPU9250_LSB) * (PI / 180.f));
-        PrivateData._uORB_Real__Roll -= PrivateData._uORB_Real_Pitch * sin((PrivateData._uORB_MPU9250_G_Z / MPUUpdateFreq / MPU9250_LSB) * (PI / 180.f));
+        PrivateData._uORB_Real_Pitch += (PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB) / MPUUpdateFreq;
+        PrivateData._uORB_Real__Roll += (PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB) / MPUUpdateFreq;
+        PrivateData._uORB_Real_Pitch += PrivateData._uORB_Real__Roll * sin((PrivateData._uORB_MPU9250_G_Z / MPUUpdateFreq / MPU9250_Gryo_LSB) * (PI / 180.f));
+        PrivateData._uORB_Real__Roll -= PrivateData._uORB_Real_Pitch * sin((PrivateData._uORB_MPU9250_G_Z / MPUUpdateFreq / MPU9250_Gryo_LSB) * (PI / 180.f));
 
         PrivateData._uORB_MPU9250_AF_X = PrivateData._uORB_MPU9250_AF_X * MPUALPFAplah + PrivateData._uORB_MPU9250_A_X * (1.f - MPUALPFAplah);
         PrivateData._uORB_MPU9250_AF_Y = PrivateData._uORB_MPU9250_AF_Y * MPUALPFAplah + PrivateData._uORB_MPU9250_A_Y * (1.f - MPUALPFAplah);
@@ -325,37 +329,37 @@ public:
             MPU9250_A_AverageFilterA_Z_Total += MPU9250_A_AverageFilterA_Z[MPU9250_AverageFilter_Clock];
             //=========================================================================================
             MPU9250_AverageFilter_Clock++;
-            if (MPU9250_AverageFilter_Clock == 10)
+            if (MPU9250_AverageFilter_Clock == (int)AccelAvaQ1)
             {
                 //=========================================================================================
                 MPU9250_A_AverageFilterD_X_Total -= MPU9250_A_AverageFilterD_X[MPU9250_AverageFilterD_Clock];
-                MPU9250_A_AverageFilterD_X[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilter_X_Total / 10.f;
+                MPU9250_A_AverageFilterD_X[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilter_X_Total / AccelAvaQ1;
                 MPU9250_A_AverageFilterD_X_Total += MPU9250_A_AverageFilterD_X[MPU9250_AverageFilterD_Clock];
-                PrivateData._uORB_MPU9250_ADF_X = MPU9250_A_AverageFilterD_X_Total / 20.f;
+                PrivateData._uORB_MPU9250_ADF_X = MPU9250_A_AverageFilterD_X_Total / AccelAvaQ2;
                 MPU9250_A_AverageFilterD_Y_Total -= MPU9250_A_AverageFilterD_Y[MPU9250_AverageFilterD_Clock];
-                MPU9250_A_AverageFilterD_Y[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilter_Y_Total / 10.f;
+                MPU9250_A_AverageFilterD_Y[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilter_Y_Total / AccelAvaQ1;
                 MPU9250_A_AverageFilterD_Y_Total += MPU9250_A_AverageFilterD_Y[MPU9250_AverageFilterD_Clock];
-                PrivateData._uORB_MPU9250_ADF_Y = MPU9250_A_AverageFilterD_Y_Total / 20.f;
+                PrivateData._uORB_MPU9250_ADF_Y = MPU9250_A_AverageFilterD_Y_Total / AccelAvaQ2;
                 MPU9250_A_AverageFilterD_Z_Total -= MPU9250_A_AverageFilterD_Z[MPU9250_AverageFilterD_Clock];
-                MPU9250_A_AverageFilterD_Z[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilter_Z_Total / 10.f;
+                MPU9250_A_AverageFilterD_Z[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilter_Z_Total / AccelAvaQ1;
                 MPU9250_A_AverageFilterD_Z_Total += MPU9250_A_AverageFilterD_Z[MPU9250_AverageFilterD_Clock];
-                PrivateData._uORB_MPU9250_ADF_Z = MPU9250_A_AverageFilterD_Z_Total / 20.f;
+                PrivateData._uORB_MPU9250_ADF_Z = MPU9250_A_AverageFilterD_Z_Total / AccelAvaQ2;
 
                 MPU9250_A_AverageFilterAD_X_Total -= MPU9250_A_AverageFilterAD_X[MPU9250_AverageFilterD_Clock];
-                MPU9250_A_AverageFilterAD_X[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilterA_X_Total / 10.f;
+                MPU9250_A_AverageFilterAD_X[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilterA_X_Total / AccelAvaQ1;
                 MPU9250_A_AverageFilterAD_X_Total += MPU9250_A_AverageFilterAD_X[MPU9250_AverageFilterD_Clock];
-                PrivateData._uORB_MPU9250_AStaticFakeFD_X = MPU9250_A_AverageFilterAD_X_Total / 20.f;
+                PrivateData._uORB_MPU9250_AStaticFakeFD_X = MPU9250_A_AverageFilterAD_X_Total / AccelAvaQ2;
                 MPU9250_A_AverageFilterAD_Y_Total -= MPU9250_A_AverageFilterAD_Y[MPU9250_AverageFilterD_Clock];
-                MPU9250_A_AverageFilterAD_Y[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilterA_Y_Total / 10.f;
+                MPU9250_A_AverageFilterAD_Y[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilterA_Y_Total / AccelAvaQ1;
                 MPU9250_A_AverageFilterAD_Y_Total += MPU9250_A_AverageFilterAD_Y[MPU9250_AverageFilterD_Clock];
-                PrivateData._uORB_MPU9250_AStaticFakeFD_Y = MPU9250_A_AverageFilterAD_Y_Total / 20.f;
+                PrivateData._uORB_MPU9250_AStaticFakeFD_Y = MPU9250_A_AverageFilterAD_Y_Total / AccelAvaQ2;
                 MPU9250_A_AverageFilterAD_Z_Total -= MPU9250_A_AverageFilterAD_Z[MPU9250_AverageFilterD_Clock];
-                MPU9250_A_AverageFilterAD_Z[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilterA_Z_Total / 10.f;
+                MPU9250_A_AverageFilterAD_Z[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilterA_Z_Total / AccelAvaQ1;
                 MPU9250_A_AverageFilterAD_Z_Total += MPU9250_A_AverageFilterAD_Z[MPU9250_AverageFilterD_Clock];
-                PrivateData._uORB_MPU9250_AStaticFakeFD_Z = MPU9250_A_AverageFilterAD_Z_Total / 20.f;
+                PrivateData._uORB_MPU9250_AStaticFakeFD_Z = MPU9250_A_AverageFilterAD_Z_Total / AccelAvaQ2;
                 //=========================================================================================
                 MPU9250_AverageFilterD_Clock++;
-                if (MPU9250_AverageFilterD_Clock == 20)
+                if (MPU9250_AverageFilterD_Clock == (int)AccelAvaQ2)
                     MPU9250_AverageFilterD_Clock = 0;
 
                 MPU9250_AverageFilter_Clock = 0;
@@ -390,6 +394,10 @@ public:
         PrivateData._uORB_MPU9250_A_Static_X -= PrivateData._flag_MPU9250_A_Static_X_Cali;
         PrivateData._uORB_MPU9250_A_Static_Y -= PrivateData._flag_MPU9250_A_Static_Y_Cali;
         PrivateData._uORB_MPU9250_A_Static_Z -= PrivateData._flag_MPU9250_A_Static_Z_Cali;
+
+        PrivateData._uORB_Acceleration_X = ((float)PrivateData._uORB_MPU9250_A_Static_X / MPU9250_Accel_LSB) * GravityAccel * 100.f;
+        PrivateData._uORB_Acceleration_Y = ((float)PrivateData._uORB_MPU9250_A_Static_Y / MPU9250_Accel_LSB) * GravityAccel * 100.f;
+        PrivateData._uORB_Acceleration_Z = ((float)PrivateData._uORB_MPU9250_A_Static_Z / MPU9250_Accel_LSB) * GravityAccel * 100.f;
 
         if (MPU9250_MixFilterType == MPUMixTradition)
         {
@@ -458,7 +466,8 @@ private:
 
     int MPU9250_fd;
     int MPUUpdateFreq = 250;
-    float MPU9250_LSB = 65.5;
+    float MPU9250_Gryo_LSB = 65.5;
+    float MPU9250_Accel_LSB = 4096.f;
     bool CompassEnable = false;
     int MPU9250_I2CAddr = 0x68;
     int MPU9250_SPI_Channel = 1;
