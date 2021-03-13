@@ -25,7 +25,7 @@
 
 #define MPUALPFAplah 0.985
 #define MPUGLPFAplah 0.7
-#define MPUMixTraditionAplah 0.9992
+#define MPUMixTraditionAplah 0.9996
 #define AccelAvaQ1 30.f
 #define AccelAvaQ2 5.f
 
