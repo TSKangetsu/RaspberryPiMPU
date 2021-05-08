@@ -23,11 +23,11 @@
 #define MPUAccelScalY 11
 #define MPUAccelScalZ 12
 
-#define MPUALPFAplah 0.96
+#define MPUALPFAplah 0.98
 #define MPUGLPFAplah 0.9
 #define MPUMixTraditionAplah 0.9996
-#define AccelAvaQ1 2.f
-#define AccelAvaQ2 1.f
+#define AccelAvaQ1 5.f
+#define AccelAvaQ2 2.f
 
 #define GravityAccel 9.80665
 #define MPUGStandard 4096.f
