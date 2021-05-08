@@ -23,12 +23,6 @@
 #define MPUAccelScalY 11
 #define MPUAccelScalZ 12
 
-#define MPUALPFAplah 0.98
-#define MPUGLPFAplah 0.9
-#define MPUMixTraditionAplah 0.9996
-#define AccelAvaQ1 5.f
-#define AccelAvaQ2 2.f
-
 #define GravityAccel 9.80665
 #define MPUGStandard 4096.f
 
@@ -104,15 +98,56 @@ class RPiMPU9250
 {
 public:
     inline RPiMPU9250(int Type = MPUTypeSPI, bool IsBuildInCompassEnable = false,
-                      int MPUSPIChannel = 1, unsigned char MPUI2CAddr = 0x68, int UpdateFreq = 250,
-                      int MixFilterType = MPUMixTradition)
+                      int MPUSPIChannel = 1, unsigned char MPUI2CAddr = 0x68, int UpdateFreq = 1000,
+                      int MixFilterType = MPUMixTradition, float MPUMixAplah = 0.9996,
+                      int AccelAvagerQ1 = 5, int AccelAvagerQ2 = 2,
+                      float Accel_LPF_BETA = 0.98, float Gryo_LPF_BETA = 0.9)
     {
         MPU9250_Type = Type;
         MPUUpdateFreq = UpdateFreq;
-        MPU9250_I2CAddr = MPU9250_I2CAddr;
+        MPU9250_I2CAddr = MPUI2CAddr;
         MPU9250_SPI_Channel = MPUSPIChannel;
         MPU9250_MixFilterType = MixFilterType;
         CompassEnable = IsBuildInCompassEnable;
+
+        AccelAvaQ1 = AccelAvagerQ1;
+        AccelAvaQ2 = AccelAvagerQ2;
+        MPUALPFAplah = Accel_LPF_BETA;
+        MPUGLPFAplah = Gryo_LPF_BETA;
+        MPUMixTraditionAplah = MPUMixAplah;
+
+        MPU9250_A_AverageFilter_X = new int[AccelAvaQ1];
+        MPU9250_A_AverageFilter_Y = new int[AccelAvaQ1];
+        MPU9250_A_AverageFilter_Z = new int[AccelAvaQ1];
+        MPU9250_A_AverageFilterA_X = new int[AccelAvaQ1];
+        MPU9250_A_AverageFilterA_Y = new int[AccelAvaQ1];
+        MPU9250_A_AverageFilterA_Z = new int[AccelAvaQ1];
+        //
+        MPU9250_A_AverageFilterD_X = new int[AccelAvaQ2];
+        MPU9250_A_AverageFilterD_Y = new int[AccelAvaQ2];
+        MPU9250_A_AverageFilterD_Z = new int[AccelAvaQ2];
+        MPU9250_A_AverageFilterAD_X = new int[AccelAvaQ2];
+        MPU9250_A_AverageFilterAD_Y = new int[AccelAvaQ2];
+        MPU9250_A_AverageFilterAD_Z = new int[AccelAvaQ2];
+
+        for (size_t i = 0; i < AccelAvaQ1; i++)
+        {
+            MPU9250_A_AverageFilter_X[i] = 0;
+            MPU9250_A_AverageFilter_Y[i] = 0;
+            MPU9250_A_AverageFilter_Z[i] = 0;
+            MPU9250_A_AverageFilterA_X[i] = 0;
+            MPU9250_A_AverageFilterA_Y[i] = 0;
+            MPU9250_A_AverageFilterA_Z[i] = 0;
+        }
+        for (size_t i = 0; i < AccelAvaQ2; i++)
+        {
+            MPU9250_A_AverageFilterD_X[i] = 0;
+            MPU9250_A_AverageFilterD_Y[i] = 0;
+            MPU9250_A_AverageFilterD_Z[i] = 0;
+            MPU9250_A_AverageFilterAD_X[i] = 0;
+            MPU9250_A_AverageFilterAD_Y[i] = 0;
+            MPU9250_A_AverageFilterAD_Z[i] = 0;
+        }
 
         if (Type == MPUTypeSPI)
         {
@@ -329,37 +364,37 @@ public:
             MPU9250_A_AverageFilterA_Z_Total += MPU9250_A_AverageFilterA_Z[MPU9250_AverageFilter_Clock];
             //=========================================================================================
             MPU9250_AverageFilter_Clock++;
-            if (MPU9250_AverageFilter_Clock == (int)AccelAvaQ1)
+            if (MPU9250_AverageFilter_Clock == AccelAvaQ1)
             {
                 //=========================================================================================
                 MPU9250_A_AverageFilterD_X_Total -= MPU9250_A_AverageFilterD_X[MPU9250_AverageFilterD_Clock];
-                MPU9250_A_AverageFilterD_X[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilter_X_Total / AccelAvaQ1;
+                MPU9250_A_AverageFilterD_X[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilter_X_Total / (float)AccelAvaQ1;
                 MPU9250_A_AverageFilterD_X_Total += MPU9250_A_AverageFilterD_X[MPU9250_AverageFilterD_Clock];
-                PrivateData._uORB_MPU9250_ADF_X = MPU9250_A_AverageFilterD_X_Total / AccelAvaQ2;
+                PrivateData._uORB_MPU9250_ADF_X = MPU9250_A_AverageFilterD_X_Total / (float)AccelAvaQ2;
                 MPU9250_A_AverageFilterD_Y_Total -= MPU9250_A_AverageFilterD_Y[MPU9250_AverageFilterD_Clock];
-                MPU9250_A_AverageFilterD_Y[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilter_Y_Total / AccelAvaQ1;
+                MPU9250_A_AverageFilterD_Y[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilter_Y_Total / (float)AccelAvaQ1;
                 MPU9250_A_AverageFilterD_Y_Total += MPU9250_A_AverageFilterD_Y[MPU9250_AverageFilterD_Clock];
-                PrivateData._uORB_MPU9250_ADF_Y = MPU9250_A_AverageFilterD_Y_Total / AccelAvaQ2;
+                PrivateData._uORB_MPU9250_ADF_Y = MPU9250_A_AverageFilterD_Y_Total / (float)AccelAvaQ2;
                 MPU9250_A_AverageFilterD_Z_Total -= MPU9250_A_AverageFilterD_Z[MPU9250_AverageFilterD_Clock];
-                MPU9250_A_AverageFilterD_Z[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilter_Z_Total / AccelAvaQ1;
+                MPU9250_A_AverageFilterD_Z[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilter_Z_Total / (float)AccelAvaQ1;
                 MPU9250_A_AverageFilterD_Z_Total += MPU9250_A_AverageFilterD_Z[MPU9250_AverageFilterD_Clock];
-                PrivateData._uORB_MPU9250_ADF_Z = MPU9250_A_AverageFilterD_Z_Total / AccelAvaQ2;
+                PrivateData._uORB_MPU9250_ADF_Z = MPU9250_A_AverageFilterD_Z_Total / (float)AccelAvaQ2;
 
                 MPU9250_A_AverageFilterAD_X_Total -= MPU9250_A_AverageFilterAD_X[MPU9250_AverageFilterD_Clock];
-                MPU9250_A_AverageFilterAD_X[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilterA_X_Total / AccelAvaQ1;
+                MPU9250_A_AverageFilterAD_X[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilterA_X_Total / (float)AccelAvaQ1;
                 MPU9250_A_AverageFilterAD_X_Total += MPU9250_A_AverageFilterAD_X[MPU9250_AverageFilterD_Clock];
-                PrivateData._uORB_MPU9250_AStaticFakeFD_X = MPU9250_A_AverageFilterAD_X_Total / AccelAvaQ2;
+                PrivateData._uORB_MPU9250_AStaticFakeFD_X = MPU9250_A_AverageFilterAD_X_Total / (float)AccelAvaQ2;
                 MPU9250_A_AverageFilterAD_Y_Total -= MPU9250_A_AverageFilterAD_Y[MPU9250_AverageFilterD_Clock];
-                MPU9250_A_AverageFilterAD_Y[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilterA_Y_Total / AccelAvaQ1;
+                MPU9250_A_AverageFilterAD_Y[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilterA_Y_Total / (float)AccelAvaQ1;
                 MPU9250_A_AverageFilterAD_Y_Total += MPU9250_A_AverageFilterAD_Y[MPU9250_AverageFilterD_Clock];
-                PrivateData._uORB_MPU9250_AStaticFakeFD_Y = MPU9250_A_AverageFilterAD_Y_Total / AccelAvaQ2;
+                PrivateData._uORB_MPU9250_AStaticFakeFD_Y = MPU9250_A_AverageFilterAD_Y_Total / (float)AccelAvaQ2;
                 MPU9250_A_AverageFilterAD_Z_Total -= MPU9250_A_AverageFilterAD_Z[MPU9250_AverageFilterD_Clock];
-                MPU9250_A_AverageFilterAD_Z[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilterA_Z_Total / AccelAvaQ1;
+                MPU9250_A_AverageFilterAD_Z[MPU9250_AverageFilterD_Clock] = MPU9250_A_AverageFilterA_Z_Total / (float)AccelAvaQ1;
                 MPU9250_A_AverageFilterAD_Z_Total += MPU9250_A_AverageFilterAD_Z[MPU9250_AverageFilterD_Clock];
-                PrivateData._uORB_MPU9250_AStaticFakeFD_Z = MPU9250_A_AverageFilterAD_Z_Total / AccelAvaQ2;
+                PrivateData._uORB_MPU9250_AStaticFakeFD_Z = MPU9250_A_AverageFilterAD_Z_Total / (float)AccelAvaQ2;
                 //=========================================================================================
                 MPU9250_AverageFilterD_Clock++;
-                if (MPU9250_AverageFilterD_Clock == (int)AccelAvaQ2)
+                if (MPU9250_AverageFilterD_Clock == AccelAvaQ2)
                     MPU9250_AverageFilterD_Clock = 0;
 
                 MPU9250_AverageFilter_Clock = 0;
@@ -485,34 +520,40 @@ private:
     double _uORB_MPU9250_A_Fake_Static_Y = 0;
     double _uORB_MPU9250_A_Fake_Static_Z = 0;
 
+    int AccelAvaQ1;
+    int AccelAvaQ2;
+    float MPUALPFAplah;
+    float MPUGLPFAplah;
+    float MPUMixTraditionAplah;
+
     int MPU9250_AverageFilter_Clock = 0;
-    int MPU9250_A_AverageFilter_X[50] = {0};
-    int MPU9250_A_AverageFilter_Y[50] = {0};
-    int MPU9250_A_AverageFilter_Z[50] = {0};
+    int *MPU9250_A_AverageFilter_X;
+    int *MPU9250_A_AverageFilter_Y;
+    int *MPU9250_A_AverageFilter_Z;
     double MPU9250_A_AverageFilter_X_Total = 0;
     double MPU9250_A_AverageFilter_Y_Total = 0;
     double MPU9250_A_AverageFilter_Z_Total = 0;
 
     int MPU9250_AverageFilterD_Clock = 0;
-    int MPU9250_A_AverageFilterD_X[100] = {0};
-    int MPU9250_A_AverageFilterD_Y[100] = {0};
-    int MPU9250_A_AverageFilterD_Z[100] = {0};
+    int *MPU9250_A_AverageFilterD_X;
+    int *MPU9250_A_AverageFilterD_Y;
+    int *MPU9250_A_AverageFilterD_Z;
     double MPU9250_A_AverageFilterD_X_Total = 0;
     double MPU9250_A_AverageFilterD_Y_Total = 0;
     double MPU9250_A_AverageFilterD_Z_Total = 0;
 
     int MPU9250_AverageFilterA_Clock = 0;
-    int MPU9250_A_AverageFilterA_X[50] = {0};
-    int MPU9250_A_AverageFilterA_Y[50] = {0};
-    int MPU9250_A_AverageFilterA_Z[50] = {0};
+    int *MPU9250_A_AverageFilterA_X;
+    int *MPU9250_A_AverageFilterA_Y;
+    int *MPU9250_A_AverageFilterA_Z;
     double MPU9250_A_AverageFilterA_X_Total = 0;
     double MPU9250_A_AverageFilterA_Y_Total = 0;
     double MPU9250_A_AverageFilterA_Z_Total = 0;
 
     int MPU9250_AverageFilterAD_Clock = 0;
-    int MPU9250_A_AverageFilterAD_X[100] = {0};
-    int MPU9250_A_AverageFilterAD_Y[100] = {0};
-    int MPU9250_A_AverageFilterAD_Z[100] = {0};
+    int *MPU9250_A_AverageFilterAD_X;
+    int *MPU9250_A_AverageFilterAD_Y;
+    int *MPU9250_A_AverageFilterAD_Z;
     double MPU9250_A_AverageFilterAD_X_Total = 0;
     double MPU9250_A_AverageFilterAD_Y_Total = 0;
     double MPU9250_A_AverageFilterAD_Z_Total = 0;
