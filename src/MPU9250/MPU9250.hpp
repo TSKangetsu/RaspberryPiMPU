@@ -25,8 +25,8 @@
 #define MPUAccelScalY 11
 #define MPUAccelScalZ 12
 
-#define AccelLPFPT1 0
-#define AccelLPFBiquad 1
+#define FilterLPFPT1 0
+#define FilterLPFBiquad 1
 
 #define GravityAccel 9.80665
 #define MPUGStandard 4096.f
@@ -98,8 +98,9 @@ class RPiMPU9250
 public:
     inline RPiMPU9250(int Type = MPUTypeSPI, bool IsBuildInCompassEnable = false,
                       int MPUSPIChannel = 1, unsigned char MPUI2CAddr = 0x68, int UpdateFreq = 1000,
-                      int MixFilterType = MPUMixTradition, float MPUMixAplah = 0.9996, float Gryo_LPF_BETA = 0.9,
-                      int AccFilterType = AccelLPFBiquad, int AccCutOff = 15)
+                      int MixFilterType = MPUMixTradition, float MPUMixAplah = 0.9996,
+                      int GFilterType = FilterLPFBiquad, float GCutOff = 256,
+                      int AccFilterType = FilterLPFBiquad, int AccCutOff = 15)
     {
         MPU9250_Type = Type;
         MPUUpdateFreq = UpdateFreq;
@@ -108,15 +109,29 @@ public:
         MPU9250_MixFilterType = MixFilterType;
         CompassEnable = IsBuildInCompassEnable;
 
+        GryoFilterType = GFilterType;
         AccelFilterType = AccFilterType;
-        MPUGLPFAplah = Gryo_LPF_BETA;
         MPUMixTraditionAplah = MPUMixAplah;
 
         int DT = (float)(1.f / (float)UpdateFreq) * 1000000;
-        switch (AccFilterType)
+        switch (GryoFilterType)
         {
-        case AccelLPFPT1:
+        case FilterLPFPT1:
+            pt1FilterInit(&GryoFilterLPFX, GCutOff, DT * 1e-6f);
+            pt1FilterInit(&GryoFilterLPFY, GCutOff, DT * 1e-6f);
+            pt1FilterInit(&GryoFilterLPFZ, GCutOff, DT * 1e-6f);
+            break;
 
+        case FilterLPFBiquad:
+            biquadFilterInitLPF(&GryoFilterBLPFX, GCutOff, DT);
+            biquadFilterInitLPF(&GryoFilterBLPFY, GCutOff, DT);
+            biquadFilterInitLPF(&GryoFilterBLPFZ, GCutOff, DT);
+            break;
+        }
+
+        switch (AccelFilterType)
+        {
+        case FilterLPFPT1:
             pt1FilterInit(&AccelFilterLPFX, AccCutOff, DT * 1e-6f);
             pt1FilterInit(&AccelFilterLPFY, AccCutOff, DT * 1e-6f);
             pt1FilterInit(&AccelFilterLPFZ, AccCutOff, DT * 1e-6f);
@@ -125,7 +140,7 @@ public:
             pt1FilterInit(&FakeAccelFilterLPFZ, AccCutOff, DT * 1e-6f);
             break;
 
-        case AccelLPFBiquad:
+        case FilterLPFBiquad:
             biquadFilterInitLPF(&AccelFilterBLPFX, AccCutOff, DT);
             biquadFilterInitLPF(&AccelFilterBLPFY, AccCutOff, DT);
             biquadFilterInitLPF(&AccelFilterBLPFZ, AccCutOff, DT);
@@ -305,9 +320,19 @@ public:
         PrivateData._uORB_MPU9250_A_Y = PrivateData._uORB_MPU9250_A_Y * PrivateData._flag_MPU9250_A_Y_Scal - PrivateData._flag_MPU9250_A_Y_Cali;
         PrivateData._uORB_MPU9250_A_Z = PrivateData._uORB_MPU9250_A_Z * PrivateData._flag_MPU9250_A_Z_Scal - PrivateData._flag_MPU9250_A_Z_Cali;
 
-        PrivateData._uORB_Gryo_Pitch = (PrivateData._uORB_Gryo_Pitch * MPUGLPFAplah) + ((PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB) * (1.f - MPUGLPFAplah));
-        PrivateData._uORB_Gryo__Roll = (PrivateData._uORB_Gryo__Roll * MPUGLPFAplah) + ((PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB) * (1.f - MPUGLPFAplah));
-        PrivateData._uORB_Gryo___Yaw = (PrivateData._uORB_Gryo___Yaw * MPUGLPFAplah) + ((PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB) * (1.f - MPUGLPFAplah));
+        switch (GryoFilterType)
+        {
+        case FilterLPFPT1:
+            PrivateData._uORB_Gryo_Pitch = pt1FilterApply(&GryoFilterLPFX, ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB));
+            PrivateData._uORB_Gryo__Roll = pt1FilterApply(&GryoFilterLPFY, ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB));
+            PrivateData._uORB_Gryo___Yaw = pt1FilterApply(&GryoFilterLPFZ, ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB));
+            break;
+        case FilterLPFBiquad:
+            PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterBLPFX, ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB));
+            PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterBLPFY, ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB));
+            PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterBLPFZ, ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB));
+            break;
+        }
 
         PrivateData._uORB_Real_Pitch += (PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB) / MPUUpdateFreq;
         PrivateData._uORB_Real__Roll += (PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB) / MPUUpdateFreq;
@@ -324,7 +349,7 @@ public:
         //========================= //=========================
         switch (AccelFilterType)
         {
-        case AccelLPFPT1:
+        case FilterLPFPT1:
             PrivateData._uORB_MPU9250_ADF_X = pt1FilterApply(&AccelFilterLPFX, (float)PrivateData._uORB_MPU9250_A_X);
             PrivateData._uORB_MPU9250_ADF_Y = pt1FilterApply(&AccelFilterLPFY, (float)PrivateData._uORB_MPU9250_A_Y);
             PrivateData._uORB_MPU9250_ADF_Z = pt1FilterApply(&AccelFilterLPFZ, (float)PrivateData._uORB_MPU9250_A_Z);
@@ -332,7 +357,7 @@ public:
             PrivateData._uORB_MPU9250_AStaticFakeFD_Y = pt1FilterApply(&FakeAccelFilterLPFY, (float)PrivateData._uORB_MPU9250_AStaticFake_Y);
             PrivateData._uORB_MPU9250_AStaticFakeFD_Z = pt1FilterApply(&FakeAccelFilterLPFZ, (float)PrivateData._uORB_MPU9250_AStaticFake_Z);
             break;
-        case AccelLPFBiquad:
+        case FilterLPFBiquad:
             PrivateData._uORB_MPU9250_ADF_X = biquadFilterApply(&AccelFilterBLPFX, (float)PrivateData._uORB_MPU9250_A_X);
             PrivateData._uORB_MPU9250_ADF_Y = biquadFilterApply(&AccelFilterBLPFY, (float)PrivateData._uORB_MPU9250_A_Y);
             PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelFilterBLPFZ, (float)PrivateData._uORB_MPU9250_A_Z);
@@ -346,8 +371,8 @@ public:
                                                   (PrivateData._uORB_MPU9250_ADF_Y * PrivateData._uORB_MPU9250_ADF_Y) +
                                                   (PrivateData._uORB_MPU9250_ADF_Z * PrivateData._uORB_MPU9250_ADF_Z));
 
-        PrivateData._uORB_Accel_Pitch = atan2((float)PrivateData._uORB_MPU9250_ADF_Y, PrivateData._uORB_MPU9250_ADF_Z) * 180 / PI;
-        PrivateData._uORB_Accel__Roll = atan2((float)PrivateData._uORB_MPU9250_ADF_X, PrivateData._uORB_MPU9250_ADF_Z) * 180 / PI;
+        PrivateData._uORB_Accel_Pitch = atan2((float)PrivateData._uORB_MPU9250_ADF_Y, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
+        PrivateData._uORB_Accel__Roll = atan2((float)PrivateData._uORB_MPU9250_ADF_X, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
 
         PrivateData._uORB_MPU9250_A_Static_Raw_X = PrivateData._uORB_MPU9250_AStaticFakeFD_X - PrivateData._uORB_MPU9250_ADF_X;
         PrivateData._uORB_MPU9250_A_Static_Raw_Y = PrivateData._uORB_MPU9250_AStaticFakeFD_Y - PrivateData._uORB_MPU9250_ADF_Y;
@@ -445,7 +470,7 @@ private:
     }
 
     int MPU9250_fd;
-    int MPUUpdateFreq = 250;
+    int MPUUpdateFreq = 1000;
     float MPU9250_Gryo_LSB = 65.5;
     float MPU9250_Accel_LSB = 4096.f;
     bool CompassEnable = false;
@@ -463,10 +488,18 @@ private:
     double _uORB_MPU9250_A_Fake_Static_Y = 0;
     double _uORB_MPU9250_A_Fake_Static_Z = 0;
 
+    int GryoFilterType;
     int AccelFilterType;
-    float MPUGLPFAplah;
     float MPUMixTraditionAplah;
     //CleanFlight Filter
+    pt1Filter_t GryoFilterLPFX;
+    pt1Filter_t GryoFilterLPFY;
+    pt1Filter_t GryoFilterLPFZ;
+
+    biquadFilter_t GryoFilterBLPFX;
+    biquadFilter_t GryoFilterBLPFY;
+    biquadFilter_t GryoFilterBLPFZ;
+
     pt1Filter_t AccelFilterLPFX;
     pt1Filter_t AccelFilterLPFY;
     pt1Filter_t AccelFilterLPFZ;
