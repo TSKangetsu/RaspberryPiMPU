@@ -99,7 +99,7 @@ public:
     inline RPiMPU9250(int Type = MPUTypeSPI, bool IsBuildInCompassEnable = false,
                       int MPUSPIChannel = 1, unsigned char MPUI2CAddr = 0x68, int UpdateFreq = 1000,
                       int MixFilterType = MPUMixTradition, float MPUMixAplah = 0.9996,
-                      int GFilterType = FilterLPFBiquad, float GCutOff = 256,
+                      int GFilterType = FilterLPFBiquad, int GCutOff = 256,
                       int AccFilterType = FilterLPFBiquad, int AccCutOff = 15)
     {
         MPU9250_Type = Type;
