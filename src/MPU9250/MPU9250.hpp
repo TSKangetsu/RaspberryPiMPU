@@ -31,6 +31,9 @@
 #define GravityAccel 9.80665
 #define MPUGStandard 4096.f
 
+#define ACC_VIBE_FLOOR_FILT_HZ 5.f
+#define ACC_VIBE_FILT_HZ 2.f
+
 struct MPUData
 {
     int _uORB_MPU9250_A_X = 0;
@@ -73,6 +76,10 @@ struct MPUData
     float _uORB_Acceleration_X = 0;
     float _uORB_Acceleration_Y = 0;
     float _uORB_Acceleration_Z = 0;
+
+    float _uORB_Accel_VIBE_X = 0;
+    float _uORB_Accel_VIBE_Y = 0;
+    float _uORB_Accel_VIBE_Z = 0;
 
     int _flag_MPU9250_G_X_Cali;
     int _flag_MPU9250_G_Y_Cali;
@@ -149,6 +156,13 @@ public:
             biquadFilterInitLPF(&FakeAccelFilterBLPFZ, AccCutOff, DT);
             break;
         }
+
+        pt1FilterInit(&VibeFloorLPFX, ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
+        pt1FilterInit(&VibeFloorLPFY, ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
+        pt1FilterInit(&VibeFloorLPFZ, ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
+        pt1FilterInit(&VibeLPFX, ACC_VIBE_FILT_HZ, DT * 1e-6f);
+        pt1FilterInit(&VibeLPFY, ACC_VIBE_FILT_HZ, DT * 1e-6f);
+        pt1FilterInit(&VibeLPFZ, ACC_VIBE_FILT_HZ, DT * 1e-6f);
 
         if (Type == MPUTypeSPI)
         {
@@ -319,6 +333,13 @@ public:
         PrivateData._uORB_MPU9250_A_X = PrivateData._uORB_MPU9250_A_X * PrivateData._flag_MPU9250_A_X_Scal - PrivateData._flag_MPU9250_A_X_Cali;
         PrivateData._uORB_MPU9250_A_Y = PrivateData._uORB_MPU9250_A_Y * PrivateData._flag_MPU9250_A_Y_Scal - PrivateData._flag_MPU9250_A_Y_Cali;
         PrivateData._uORB_MPU9250_A_Z = PrivateData._uORB_MPU9250_A_Z * PrivateData._flag_MPU9250_A_Z_Scal - PrivateData._flag_MPU9250_A_Z_Cali;
+
+        float AccVibeFloorX = pt1FilterApply(&VibeFloorLPFX, (PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
+        float AccVibeFloorY = pt1FilterApply(&VibeFloorLPFY, (PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
+        float AccVibeFloorZ = pt1FilterApply(&VibeFloorLPFZ, (PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
+        PrivateData._uORB_Accel_VIBE_X = pt1FilterApply(&VibeLPFX, (pow((((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB) - AccVibeFloorX), 2)));
+        PrivateData._uORB_Accel_VIBE_Y = pt1FilterApply(&VibeLPFY, (pow((((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB) - AccVibeFloorY), 2)));
+        PrivateData._uORB_Accel_VIBE_Z = pt1FilterApply(&VibeLPFZ, (pow((((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB) - AccVibeFloorZ), 2)));
 
         switch (GryoFilterType)
         {
@@ -513,4 +534,11 @@ private:
     biquadFilter_t FakeAccelFilterBLPFX;
     biquadFilter_t FakeAccelFilterBLPFY;
     biquadFilter_t FakeAccelFilterBLPFZ;
+
+    pt1Filter_t VibeFloorLPFX;
+    pt1Filter_t VibeFloorLPFY;
+    pt1Filter_t VibeFloorLPFZ;
+    pt1Filter_t VibeLPFX;
+    pt1Filter_t VibeLPFY;
+    pt1Filter_t VibeLPFZ;
 };
