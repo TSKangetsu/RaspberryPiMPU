@@ -31,6 +31,7 @@
 #define GravityAccel 9.80665
 #define MPUGStandard 4096.f
 
+#define DYNAMIC_NOTCH_DEFAULT_CENTER_HZ 350.f
 #define ACC_VIBE_FLOOR_FILT_HZ 5.f
 #define ACC_VIBE_FILT_HZ 2.f
 
@@ -135,6 +136,10 @@ public:
             biquadFilterInitLPF(&GryoFilterBLPFZ, GCutOff, DT);
             break;
         }
+
+        biquadFilterInit(&GryoFilterNotchX, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
+        biquadFilterInit(&GryoFilterNotchY, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
+        biquadFilterInit(&GryoFilterNotchZ, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
 
         switch (AccelFilterType)
         {
@@ -520,6 +525,10 @@ private:
     biquadFilter_t GryoFilterBLPFX;
     biquadFilter_t GryoFilterBLPFY;
     biquadFilter_t GryoFilterBLPFZ;
+
+    biquadFilter_t GryoFilterNotchX;
+    biquadFilter_t GryoFilterNotchY;
+    biquadFilter_t GryoFilterNotchZ;
 
     pt1Filter_t AccelFilterLPFX;
     pt1Filter_t AccelFilterLPFY;
