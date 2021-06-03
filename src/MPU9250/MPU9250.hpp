@@ -438,11 +438,11 @@ public:
         PrivateData._uORB_MPU9250_A_Static_Raw_Z = PrivateData._uORB_MPU9250_AStaticFakeFD_Z - PrivateData._uORB_MPU9250_ADF_Z;
         //=========================
         PrivateData._uORB_MPU9250_A_Static_X = PrivateData._uORB_MPU9250_A_Static_Raw_X * cos(-1 * PrivateData._uORB_Real__Roll * (PI / 180.f));
-        PrivateData._uORB_MPU9250_A_Static_X += PrivateData._uORB_MPU9250_A_Static_Raw_Y * sin(-1 * PrivateData._uORB_Real_Pitch * (PI / 180.f));
+        PrivateData._uORB_MPU9250_A_Static_X += PrivateData._uORB_MPU9250_A_Static_Raw_Y * sin(PrivateData._uORB_Real_Pitch * (PI / 180.f));
         PrivateData._uORB_MPU9250_A_Static_X += PrivateData._uORB_MPU9250_A_Static_Raw_Z * sin(-1 * PrivateData._uORB_Real__Roll * (PI / 180.f));
 
         PrivateData._uORB_MPU9250_A_Static_Y = PrivateData._uORB_MPU9250_A_Static_Raw_Y * cos(-1 * PrivateData._uORB_Real_Pitch * (PI / 180.f));
-        PrivateData._uORB_MPU9250_A_Static_Y += PrivateData._uORB_MPU9250_A_Static_Raw_X * sin(-1 * PrivateData._uORB_Real__Roll * (PI / 180.f));
+        PrivateData._uORB_MPU9250_A_Static_Y += PrivateData._uORB_MPU9250_A_Static_Raw_X * sin(PrivateData._uORB_Real__Roll * (PI / 180.f));
         PrivateData._uORB_MPU9250_A_Static_Y += PrivateData._uORB_MPU9250_A_Static_Raw_Z * sin(-1 * PrivateData._uORB_Real_Pitch * (PI / 180.f));
         //=========================
         PrivateData._uORB_MPU9250_A_Static_Z = 0;
