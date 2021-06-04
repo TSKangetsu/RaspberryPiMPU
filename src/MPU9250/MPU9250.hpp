@@ -32,7 +32,6 @@
 #define MPUGStandard 4096.f
 
 #define DYNAMIC_NOTCH_DEFAULT_CENTER_HZ 350.f
-#define ACC_VECTOR_FILT_HZ 1.f
 #define ACC_VIBE_FLOOR_FILT_HZ 5.f
 #define ACC_VIBE_FILT_HZ 2.f
 
@@ -169,8 +168,6 @@ public:
         pt1FilterInit(&VibeLPFX, ACC_VIBE_FILT_HZ, DT * 1e-6f);
         pt1FilterInit(&VibeLPFY, ACC_VIBE_FILT_HZ, DT * 1e-6f);
         pt1FilterInit(&VibeLPFZ, ACC_VIBE_FILT_HZ, DT * 1e-6f);
-
-        pt1FilterInit(&AccVectorLPF, ACC_VECTOR_FILT_HZ, DT * 1e-6f);
 
         if (Type == MPUTypeSPI)
         {
@@ -423,7 +420,6 @@ public:
                                                   (PrivateData._uORB_MPU9250_ADF_Y * PrivateData._uORB_MPU9250_ADF_Y) +
                                                   (PrivateData._uORB_MPU9250_ADF_Z * PrivateData._uORB_MPU9250_ADF_Z)) /
                                              MPU9250_Accel_LSB;
-        PrivateData._uORB_MPU9250_A_Vector = pt1FilterApply(&AccVectorLPF, PrivateData._uORB_MPU9250_A_Vector);
         float VectorBeta = 0;
         if (1.1f < PrivateData._uORB_MPU9250_A_Vector && PrivateData._uORB_MPU9250_A_Vector < 1.6f)
             VectorBeta = 1.6f - PrivateData._uORB_MPU9250_A_Vector / 0.5f;
@@ -435,7 +431,7 @@ public:
             VectorBeta = 0;
         VectorBeta = VectorBeta > 1.f ? 1.f : VectorBeta;
         VectorBeta = VectorBeta < 0.f ? 0.f : VectorBeta;
-        const double relAlpha = ((float)(1.f / (float)MPUUpdateFreq) * 1000000) / (((float)(1.f / (float)MPUUpdateFreq) * 1000000) + 0.08);
+        const double relAlpha = ((float)(1.f / (float)MPUUpdateFreq) * 1000000) / (((float)(1.f / (float)MPUUpdateFreq) * 1000000) + 2.0);
         MPUDynamicAccelRES = MPUDynamicAccelRES * relAlpha + VectorBeta * (1.f - relAlpha);
         MPUDynamicAccel = (1.f - MPUMixTraditionAplah) * MPUDynamicAccelRES;
 
@@ -602,6 +598,4 @@ private:
     pt1Filter_t VibeLPFX;
     pt1Filter_t VibeLPFY;
     pt1Filter_t VibeLPFZ;
-
-    pt1Filter_t AccVectorLPF;
 };
