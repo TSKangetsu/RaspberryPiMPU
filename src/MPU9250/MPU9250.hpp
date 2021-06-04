@@ -32,6 +32,7 @@
 #define MPUGStandard 4096.f
 
 #define DYNAMIC_NOTCH_DEFAULT_CENTER_HZ 350.f
+#define ACC_VECTOR_FILT_HZ 1.f
 #define ACC_VIBE_FLOOR_FILT_HZ 5.f
 #define ACC_VIBE_FILT_HZ 2.f
 
@@ -58,7 +59,7 @@ struct MPUData
     float _uORB_MPU9250_AStaticFakeFD_Y = 0;
     float _uORB_MPU9250_AStaticFakeFD_Z = 0;
 
-    int _uORB_MPU9250_A_Vector = 0;
+    float _uORB_MPU9250_A_Vector = 0; //in G's
     int _uORB_MPU9250_Accel_Static_Vector = 4250;
     int _uORB_MPU9250_A_Static_X = 0;
     int _uORB_MPU9250_A_Static_Y = 0;
@@ -107,7 +108,7 @@ class RPiMPU9250
 public:
     inline RPiMPU9250(int Type = MPUTypeSPI, bool IsBuildInCompassEnable = false,
                       int MPUSPIChannel = 1, unsigned char MPUI2CAddr = 0x68, int UpdateFreq = 1000,
-                      int MixFilterType = MPUMixTradition, float MPUMixAplah = 0.9996,
+                      float MPUMixAplah = 0.9996,
                       int GFilterType = FilterLPFBiquad, int GCutOff = 256,
                       int AccFilterType = FilterLPFBiquad, int AccCutOff = 15)
     {
@@ -115,7 +116,6 @@ public:
         MPUUpdateFreq = UpdateFreq;
         MPU9250_I2CAddr = MPUI2CAddr;
         MPU9250_SPI_Channel = MPUSPIChannel;
-        MPU9250_MixFilterType = MixFilterType;
         CompassEnable = IsBuildInCompassEnable;
 
         GryoFilterType = GFilterType;
@@ -169,6 +169,8 @@ public:
         pt1FilterInit(&VibeLPFX, ACC_VIBE_FILT_HZ, DT * 1e-6f);
         pt1FilterInit(&VibeLPFY, ACC_VIBE_FILT_HZ, DT * 1e-6f);
         pt1FilterInit(&VibeLPFZ, ACC_VIBE_FILT_HZ, DT * 1e-6f);
+
+        pt1FilterInit(&AccVectorLPF, ACC_VECTOR_FILT_HZ, DT * 1e-6f);
 
         if (Type == MPUTypeSPI)
         {
@@ -419,7 +421,23 @@ public:
         //========================= //=========================
         PrivateData._uORB_MPU9250_A_Vector = sqrt((PrivateData._uORB_MPU9250_ADF_X * PrivateData._uORB_MPU9250_ADF_X) +
                                                   (PrivateData._uORB_MPU9250_ADF_Y * PrivateData._uORB_MPU9250_ADF_Y) +
-                                                  (PrivateData._uORB_MPU9250_ADF_Z * PrivateData._uORB_MPU9250_ADF_Z));
+                                                  (PrivateData._uORB_MPU9250_ADF_Z * PrivateData._uORB_MPU9250_ADF_Z)) /
+                                             MPU9250_Accel_LSB;
+        PrivateData._uORB_MPU9250_A_Vector = pt1FilterApply(&AccVectorLPF, PrivateData._uORB_MPU9250_A_Vector);
+        float VectorBeta = 0;
+        if (1.1f < PrivateData._uORB_MPU9250_A_Vector && PrivateData._uORB_MPU9250_A_Vector < 1.6f)
+            VectorBeta = 1.6f - PrivateData._uORB_MPU9250_A_Vector / 0.5f;
+        if (0.7 < PrivateData._uORB_MPU9250_A_Vector && PrivateData._uORB_MPU9250_A_Vector < 0.9f)
+            VectorBeta = 0.9 - PrivateData._uORB_MPU9250_A_Vector / 0.2f;
+        else if (PrivateData._uORB_MPU9250_A_Vector > 1.6f || PrivateData._uORB_MPU9250_A_Vector < 0.7)
+            VectorBeta = 1.f;
+        else
+            VectorBeta = 0;
+        VectorBeta = VectorBeta > 1.f ? 1.f : VectorBeta;
+        VectorBeta = VectorBeta < 0.f ? 0.f : VectorBeta;
+        const double relAlpha = ((float)(1.f / (float)MPUUpdateFreq) * 1000000) / (((float)(1.f / (float)MPUUpdateFreq) * 1000000) + 0.08);
+        MPUDynamicAccelRES = MPUDynamicAccelRES * relAlpha + VectorBeta * (1.f - relAlpha);
+        MPUDynamicAccel = (1.f - MPUMixTraditionAplah) * MPUDynamicAccelRES;
 
         PrivateData._uORB_Accel_Pitch = atan2((float)PrivateData._uORB_MPU9250_ADF_Y, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
         PrivateData._uORB_Accel__Roll = atan2((float)PrivateData._uORB_MPU9250_ADF_X, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
@@ -463,17 +481,10 @@ public:
         PrivateData._uORB_Acceleration_Y = ((float)PrivateData._uORB_MPU9250_A_Static_Y / MPU9250_Accel_LSB) * GravityAccel * 100.f;
         PrivateData._uORB_Acceleration_Z = ((float)PrivateData._uORB_MPU9250_A_Static_Z / MPU9250_Accel_LSB) * GravityAccel * 100.f;
 
-        if (MPU9250_MixFilterType == MPUMixTradition)
-        {
-            PrivateData._uORB_Real__Roll = PrivateData._uORB_Real__Roll * MPUMixTraditionAplah + PrivateData._uORB_Accel__Roll * (1.f - MPUMixTraditionAplah);
-            PrivateData._uORB_Real_Pitch = PrivateData._uORB_Real_Pitch * MPUMixTraditionAplah + PrivateData._uORB_Accel_Pitch * (1.f - MPUMixTraditionAplah);
-        }
-        else if (MPU9250_MixFilterType == MPUMixKalman)
-        {
-            //
-            //
-        }
-
+        PrivateData._uORB_Real__Roll = PrivateData._uORB_Real__Roll * (MPUMixTraditionAplah + MPUDynamicAccel) +
+                                       PrivateData._uORB_Accel__Roll * (1.f - (MPUMixTraditionAplah + MPUDynamicAccel));
+        PrivateData._uORB_Real_Pitch = PrivateData._uORB_Real_Pitch * (MPUMixTraditionAplah + MPUDynamicAccel) +
+                                       PrivateData._uORB_Accel_Pitch * (1.f - (MPUMixTraditionAplah + MPUDynamicAccel));
         return PrivateData;
     }
 
@@ -541,7 +552,6 @@ private:
     int MPU9250_SPI_Channel = 1;
     int MPU9250_Type = MPUTypeSPI;
     int MPU9250_SPI_Freq = 10000000;
-    int MPU9250_MixFilterType = MPUMixTradition;
     unsigned char MPU9250_SPI_Config[20] = {0};
     unsigned char Tmp_MPU9250_Buffer[20] = {0};
     unsigned char Tmp_MPU9250_SPI_Buffer[20] = {0};
@@ -549,6 +559,8 @@ private:
 
     int GryoReveresPitch = 1;
     int GryoReveresRoll = 1;
+    double MPUDynamicAccel = 1.0;
+    double MPUDynamicAccelRES = 0;
 
     double _uORB_MPU9250_A_Fake_Static_X = 0;
     double _uORB_MPU9250_A_Fake_Static_Y = 0;
@@ -590,4 +602,6 @@ private:
     pt1Filter_t VibeLPFX;
     pt1Filter_t VibeLPFY;
     pt1Filter_t VibeLPFZ;
+
+    pt1Filter_t AccVectorLPF;
 };
