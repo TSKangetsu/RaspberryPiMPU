@@ -58,6 +58,7 @@ struct MPUData
     float _uORB_MPU9250_AStaticFakeFD_Y = 0;
     float _uORB_MPU9250_AStaticFakeFD_Z = 0;
 
+    float _uORB_MPU9250_A_Trust = 0;
     float _uORB_MPU9250_A_Vector = 0; //in G's
     int _uORB_MPU9250_Accel_Static_Vector = 4250;
     int _uORB_MPU9250_A_Static_X = 0;
@@ -431,9 +432,10 @@ public:
             VectorBeta = 0;
         VectorBeta = VectorBeta > 1.f ? 1.f : VectorBeta;
         VectorBeta = VectorBeta < 0.f ? 0.f : VectorBeta;
-        const double relAlpha = ((float)(1.f / (float)MPUUpdateFreq) * 1000000) / (((float)(1.f / (float)MPUUpdateFreq) * 1000000) + 2.0);
+        const double relAlpha = ((float)(1.f / (float)MPUUpdateFreq) * 1000000) / (((float)(1.f / (float)MPUUpdateFreq) * 1000000) + 15.0);
         MPUDynamicAccelRES = MPUDynamicAccelRES * relAlpha + VectorBeta * (1.f - relAlpha);
         MPUDynamicAccel = (1.f - MPUMixTraditionAplah) * MPUDynamicAccelRES;
+        PrivateData._uORB_MPU9250_A_Trust = MPUDynamicAccelRES;
 
         PrivateData._uORB_Accel_Pitch = atan2((float)PrivateData._uORB_MPU9250_ADF_Y, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
         PrivateData._uORB_Accel__Roll = atan2((float)PrivateData._uORB_MPU9250_ADF_X, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
