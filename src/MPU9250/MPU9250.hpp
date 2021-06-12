@@ -206,6 +206,9 @@ public:
         double _Tmp_Gryo_X_Cali = 0;
         double _Tmp_Gryo_Y_Cali = 0;
         double _Tmp_Gryo_Z_Cali = 0;
+        PrivateData._flag_MPU9250_G_X_Cali = 0;
+        PrivateData._flag_MPU9250_G_Y_Cali = 0;
+        PrivateData._flag_MPU9250_G_Z_Cali = 0;
 
         for (int cali_count = 0; cali_count < 1000; cali_count++)
         {
