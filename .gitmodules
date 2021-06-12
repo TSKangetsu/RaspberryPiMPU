@@ -1,0 +1,4 @@
+[submodule "src/_thirdparty/libeigen"]
+	path = src/_thirdparty/libeigen
+	url = https://gitlab.com/libeigen/eigen
+	branch = 3.4

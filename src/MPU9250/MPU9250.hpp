@@ -5,6 +5,8 @@
 #include <wiringPi.h>
 #include <wiringPiI2C.h>
 #include <wiringPiSPI.h>
+#include "../_thirdparty/libeigen/Eigen/Dense"
+#include "../_thirdparty/libeigen/Eigen/LU"
 
 #define PI 3.1415926
 #define MPUTypeI2C 0
@@ -58,14 +60,10 @@ struct MPUData
     float _uORB_MPU9250_AStaticFakeFD_Y = 0;
     float _uORB_MPU9250_AStaticFakeFD_Z = 0;
 
-    float _uORB_MPU9250_A_Vector = 0; //in G's
-    int _uORB_MPU9250_Accel_Static_Vector = 4250;
+    float _uORB_MPU9250_A_Vector = 0;
     int _uORB_MPU9250_A_Static_X = 0;
     int _uORB_MPU9250_A_Static_Y = 0;
     int _uORB_MPU9250_A_Static_Z = 0;
-    int _uORB_MPU9250_A_Static_Raw_X = 0;
-    int _uORB_MPU9250_A_Static_Raw_Y = 0;
-    int _uORB_MPU9250_A_Static_Raw_Z = 0;
 
     float _uORB_Gryo__Roll = 0;
     float _uORB_Gryo_Pitch = 0;
@@ -86,13 +84,6 @@ struct MPUData
     int _flag_MPU9250_G_X_Cali;
     int _flag_MPU9250_G_Y_Cali;
     int _flag_MPU9250_G_Z_Cali;
-
-    int _flag_MPU9250_A_Static_X_Cali;
-    int _flag_MPU9250_A_Static_Y_Cali;
-    int _flag_MPU9250_A_Static_Z_Cali;
-    int _flag_MPU9250_A_Static_Raw_X_Cali;
-    int _flag_MPU9250_A_Static_Raw_Y_Cali;
-    int _flag_MPU9250_A_Static_Raw_Z_Cali;
 
     double _flag_MPU9250_A_X_Scal;
     double _flag_MPU9250_A_Y_Scal;
@@ -215,35 +206,7 @@ public:
         double _Tmp_Gryo_X_Cali = 0;
         double _Tmp_Gryo_Y_Cali = 0;
         double _Tmp_Gryo_Z_Cali = 0;
-        double _Tmp_Static_Raw_X_Cali = 0;
-        double _Tmp_Static_Raw_Y_Cali = 0;
-        double _Tmp_Static_Raw_Z_Cali = 0;
-        double _Tmp_Static_X_Cali = 0;
-        double _Tmp_Static_Y_Cali = 0;
-        double _Tmp_Static_Z_Cali = 0;
-        double _Tmp_Static_Vector = 0;
 
-        PrivateData._flag_MPU9250_G_X_Cali = 0;
-        PrivateData._flag_MPU9250_G_Y_Cali = 0;
-        PrivateData._flag_MPU9250_G_Z_Cali = 0;
-        PrivateData._flag_MPU9250_A_Static_Raw_X_Cali = 0;
-        PrivateData._flag_MPU9250_A_Static_Raw_Y_Cali = 0;
-        PrivateData._flag_MPU9250_A_Static_Raw_Z_Cali = 0;
-        PrivateData._flag_MPU9250_A_Static_X_Cali = 0;
-        PrivateData._flag_MPU9250_A_Static_Y_Cali = 0;
-        PrivateData._flag_MPU9250_A_Static_Z_Cali = 0;
-        PrivateData._uORB_MPU9250_Accel_Static_Vector = 4096;
-        for (size_t i = 0; i < 2000; i++)
-        {
-            MPUSensorsDataGet();
-            ResetMPUMixAngle();
-            PrivateData._uORB_MPU9250_A_Vector = sqrt((PrivateData._uORB_MPU9250_A_X * PrivateData._uORB_MPU9250_A_X) +
-                                                      (PrivateData._uORB_MPU9250_A_Y * PrivateData._uORB_MPU9250_A_Y) +
-                                                      (PrivateData._uORB_MPU9250_A_Z * PrivateData._uORB_MPU9250_A_Z));
-            _Tmp_Static_Vector += PrivateData._uORB_MPU9250_A_Vector;
-            usleep((int)(1.f / (float)MPUUpdateFreq * 1000000.f));
-        }
-        PrivateData._uORB_MPU9250_Accel_Static_Vector = _Tmp_Static_Vector / 2000.f;
         for (int cali_count = 0; cali_count < 1000; cali_count++)
         {
             MPUSensorsDataGet();
@@ -251,30 +214,11 @@ public:
             _Tmp_Gryo_X_Cali += PrivateData._uORB_MPU9250_G_X;
             _Tmp_Gryo_Y_Cali += PrivateData._uORB_MPU9250_G_Y;
             _Tmp_Gryo_Z_Cali += PrivateData._uORB_MPU9250_G_Z;
-            _Tmp_Static_Raw_X_Cali += PrivateData._uORB_MPU9250_A_Static_Raw_X;
-            _Tmp_Static_Raw_Y_Cali += PrivateData._uORB_MPU9250_A_Static_Raw_Y;
-            _Tmp_Static_Raw_Z_Cali += PrivateData._uORB_MPU9250_A_Static_Raw_Z;
             usleep((int)(1.f / (float)MPUUpdateFreq * 1000000.f));
         }
         PrivateData._flag_MPU9250_G_X_Cali = _Tmp_Gryo_X_Cali / 1000.0;
         PrivateData._flag_MPU9250_G_Y_Cali = _Tmp_Gryo_Y_Cali / 1000.0;
         PrivateData._flag_MPU9250_G_Z_Cali = _Tmp_Gryo_Z_Cali / 1000.0;
-        PrivateData._flag_MPU9250_A_Static_Raw_X_Cali = _Tmp_Static_Raw_X_Cali / 1000.0;
-        PrivateData._flag_MPU9250_A_Static_Raw_Y_Cali = _Tmp_Static_Raw_Y_Cali / 1000.0;
-        PrivateData._flag_MPU9250_A_Static_Raw_Z_Cali = _Tmp_Static_Raw_Z_Cali / 1000.0;
-
-        for (int cali_count = 0; cali_count < 1000; cali_count++)
-        {
-            MPUSensorsDataGet();
-            ResetMPUMixAngle();
-            _Tmp_Static_X_Cali += PrivateData._uORB_MPU9250_A_Static_X;
-            _Tmp_Static_Y_Cali += PrivateData._uORB_MPU9250_A_Static_Y;
-            _Tmp_Static_Z_Cali += PrivateData._uORB_MPU9250_A_Static_Z;
-            usleep((int)(1.f / (float)MPUUpdateFreq * 1000000.f));
-        }
-        PrivateData._flag_MPU9250_A_Static_X_Cali = _Tmp_Static_X_Cali / 1000.0;
-        PrivateData._flag_MPU9250_A_Static_Y_Cali = _Tmp_Static_Y_Cali / 1000.0;
-        PrivateData._flag_MPU9250_A_Static_Z_Cali = _Tmp_Static_Z_Cali / 1000.0;
         return 0;
     };
 
@@ -334,18 +278,16 @@ public:
         PrivateData._uORB_MPU9250_G_X -= PrivateData._flag_MPU9250_G_X_Cali;
         PrivateData._uORB_MPU9250_G_Y -= PrivateData._flag_MPU9250_G_Y_Cali;
         PrivateData._uORB_MPU9250_G_Z -= PrivateData._flag_MPU9250_G_Z_Cali;
-
         PrivateData._uORB_MPU9250_A_X = PrivateData._uORB_MPU9250_A_X * PrivateData._flag_MPU9250_A_X_Scal - PrivateData._flag_MPU9250_A_X_Cali;
         PrivateData._uORB_MPU9250_A_Y = PrivateData._uORB_MPU9250_A_Y * PrivateData._flag_MPU9250_A_Y_Scal - PrivateData._flag_MPU9250_A_Y_Cali;
         PrivateData._uORB_MPU9250_A_Z = PrivateData._uORB_MPU9250_A_Z * PrivateData._flag_MPU9250_A_Z_Scal - PrivateData._flag_MPU9250_A_Z_Cali;
-
         float AccVibeFloorX = pt1FilterApply(&VibeFloorLPFX, (PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
         float AccVibeFloorY = pt1FilterApply(&VibeFloorLPFY, (PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
         float AccVibeFloorZ = pt1FilterApply(&VibeFloorLPFZ, (PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
         PrivateData._uORB_Accel_VIBE_X = pt1FilterApply(&VibeLPFX, (pow((((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB) - AccVibeFloorX), 2)));
         PrivateData._uORB_Accel_VIBE_Y = pt1FilterApply(&VibeLPFY, (pow((((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB) - AccVibeFloorY), 2)));
         PrivateData._uORB_Accel_VIBE_Z = pt1FilterApply(&VibeLPFZ, (pow((((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB) - AccVibeFloorZ), 2)));
-
+        //
         switch (GryoFilterType)
         {
         case FilterLPFPT1:
@@ -359,7 +301,33 @@ public:
             PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterBLPFZ, ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB));
             break;
         }
+        //
+        switch (AccelFilterType)
+        {
+        case FilterLPFPT1:
+            PrivateData._uORB_MPU9250_ADF_X = pt1FilterApply(&AccelFilterLPFX, (float)PrivateData._uORB_MPU9250_A_X);
+            PrivateData._uORB_MPU9250_ADF_Y = pt1FilterApply(&AccelFilterLPFY, (float)PrivateData._uORB_MPU9250_A_Y);
+            PrivateData._uORB_MPU9250_ADF_Z = pt1FilterApply(&AccelFilterLPFZ, (float)PrivateData._uORB_MPU9250_A_Z);
+            break;
+        case FilterLPFBiquad:
+            PrivateData._uORB_MPU9250_ADF_X = biquadFilterApply(&AccelFilterBLPFX, (float)PrivateData._uORB_MPU9250_A_X);
+            PrivateData._uORB_MPU9250_ADF_Y = biquadFilterApply(&AccelFilterBLPFY, (float)PrivateData._uORB_MPU9250_A_Y);
+            PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelFilterBLPFZ, (float)PrivateData._uORB_MPU9250_A_Z);
+            break;
+        }
+        //
+        PrivateData._uORB_Accel_Pitch = atan2((float)PrivateData._uORB_MPU9250_ADF_Y, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
+        PrivateData._uORB_Accel__Roll = atan2((float)PrivateData._uORB_MPU9250_ADF_X, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
+        if (PrivateData._uORB_Accel_Pitch > 90.f)
+            PrivateData._uORB_Accel_Pitch = 180.f - PrivateData._uORB_Accel_Pitch;
+        else if (PrivateData._uORB_Accel_Pitch < -90.f)
+            PrivateData._uORB_Accel_Pitch = -1 * (180.f - (-1 * PrivateData._uORB_Accel_Pitch));
 
+        if (PrivateData._uORB_Accel__Roll > 90.f)
+            PrivateData._uORB_Accel__Roll = 180.f - PrivateData._uORB_Accel__Roll;
+        else if (PrivateData._uORB_Accel__Roll < -90.f)
+            PrivateData._uORB_Accel__Roll = -1 * (180.f - (-1 * PrivateData._uORB_Accel__Roll));
+        //========================= //=========================
         if (PrivateData._uORB_Real__Roll > 90.f)
         {
             GryoReveresRoll *= -1;
@@ -386,86 +354,28 @@ public:
 
         PrivateData._uORB_Real_Pitch += PrivateData._uORB_Real__Roll * sin(((float)PrivateData._uORB_MPU9250_G_Z / (float)MPUUpdateFreq / MPU9250_Gryo_LSB) * (PI / 180.f));
         PrivateData._uORB_Real__Roll -= PrivateData._uORB_Real_Pitch * sin(((float)PrivateData._uORB_MPU9250_G_Z / (float)MPUUpdateFreq / MPU9250_Gryo_LSB) * (PI / 180.f));
-
-        PrivateData._uORB_MPU9250_AStaticFake_X = sin(PrivateData._uORB_Real__Roll * (PI / 180.f)) * PrivateData._uORB_MPU9250_Accel_Static_Vector;
-        PrivateData._uORB_MPU9250_AStaticFake_Y = sin(PrivateData._uORB_Real_Pitch * (PI / 180.f)) * PrivateData._uORB_MPU9250_Accel_Static_Vector;
-        PrivateData._uORB_MPU9250_AStaticFake_Z =
-            (float)sqrt(abs(pow(PrivateData._uORB_MPU9250_Accel_Static_Vector, 2) -
-                            pow(PrivateData._uORB_MPU9250_AStaticFake_X, 2) -
-                            pow(PrivateData._uORB_MPU9250_AStaticFake_Y, 2)));
-        //========================= //=========================
-        switch (AccelFilterType)
-        {
-        case FilterLPFPT1:
-            PrivateData._uORB_MPU9250_ADF_X = pt1FilterApply(&AccelFilterLPFX, (float)PrivateData._uORB_MPU9250_A_X);
-            PrivateData._uORB_MPU9250_ADF_Y = pt1FilterApply(&AccelFilterLPFY, (float)PrivateData._uORB_MPU9250_A_Y);
-            PrivateData._uORB_MPU9250_ADF_Z = pt1FilterApply(&AccelFilterLPFZ, (float)PrivateData._uORB_MPU9250_A_Z);
-            PrivateData._uORB_MPU9250_AStaticFakeFD_X = pt1FilterApply(&FakeAccelFilterLPFX, (float)PrivateData._uORB_MPU9250_AStaticFake_X);
-            PrivateData._uORB_MPU9250_AStaticFakeFD_Y = pt1FilterApply(&FakeAccelFilterLPFY, (float)PrivateData._uORB_MPU9250_AStaticFake_Y);
-            PrivateData._uORB_MPU9250_AStaticFakeFD_Z = pt1FilterApply(&FakeAccelFilterLPFZ, (float)PrivateData._uORB_MPU9250_AStaticFake_Z);
-            break;
-        case FilterLPFBiquad:
-            PrivateData._uORB_MPU9250_ADF_X = biquadFilterApply(&AccelFilterBLPFX, (float)PrivateData._uORB_MPU9250_A_X);
-            PrivateData._uORB_MPU9250_ADF_Y = biquadFilterApply(&AccelFilterBLPFY, (float)PrivateData._uORB_MPU9250_A_Y);
-            PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelFilterBLPFZ, (float)PrivateData._uORB_MPU9250_A_Z);
-            PrivateData._uORB_MPU9250_AStaticFakeFD_X = biquadFilterApply(&FakeAccelFilterBLPFX, (float)PrivateData._uORB_MPU9250_AStaticFake_X);
-            PrivateData._uORB_MPU9250_AStaticFakeFD_Y = biquadFilterApply(&FakeAccelFilterBLPFY, (float)PrivateData._uORB_MPU9250_AStaticFake_Y);
-            PrivateData._uORB_MPU9250_AStaticFakeFD_Z = biquadFilterApply(&FakeAccelFilterBLPFZ, (float)PrivateData._uORB_MPU9250_AStaticFake_Z);
-            break;
-        }
-        if (PrivateData._uORB_Real_Reverse)
-            PrivateData._uORB_MPU9250_AStaticFakeFD_Z *= -1;
-        //========================= //=========================
-        PrivateData._uORB_MPU9250_A_Vector = sqrt((PrivateData._uORB_MPU9250_ADF_X * PrivateData._uORB_MPU9250_ADF_X) +
-                                                  (PrivateData._uORB_MPU9250_ADF_Y * PrivateData._uORB_MPU9250_ADF_Y) +
-                                                  (PrivateData._uORB_MPU9250_ADF_Z * PrivateData._uORB_MPU9250_ADF_Z)) /
-                                             MPU9250_Accel_LSB;
-
-        PrivateData._uORB_Accel_Pitch = atan2((float)PrivateData._uORB_MPU9250_ADF_Y, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
-        PrivateData._uORB_Accel__Roll = atan2((float)PrivateData._uORB_MPU9250_ADF_X, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
-        if (PrivateData._uORB_Accel_Pitch > 90.f)
-            PrivateData._uORB_Accel_Pitch = 180.f - PrivateData._uORB_Accel_Pitch;
-        else if (PrivateData._uORB_Accel_Pitch < -90.f)
-            PrivateData._uORB_Accel_Pitch = -1 * (180.f - (-1 * PrivateData._uORB_Accel_Pitch));
-
-        if (PrivateData._uORB_Accel__Roll > 90.f)
-            PrivateData._uORB_Accel__Roll = 180.f - PrivateData._uORB_Accel__Roll;
-        else if (PrivateData._uORB_Accel__Roll < -90.f)
-            PrivateData._uORB_Accel__Roll = -1 * (180.f - (-1 * PrivateData._uORB_Accel__Roll));
-
-        PrivateData._uORB_MPU9250_A_Static_Raw_X = PrivateData._uORB_MPU9250_AStaticFakeFD_X - PrivateData._uORB_MPU9250_ADF_X;
-        PrivateData._uORB_MPU9250_A_Static_Raw_Y = PrivateData._uORB_MPU9250_AStaticFakeFD_Y - PrivateData._uORB_MPU9250_ADF_Y;
-        PrivateData._uORB_MPU9250_A_Static_Raw_Z = PrivateData._uORB_MPU9250_AStaticFakeFD_Z - PrivateData._uORB_MPU9250_ADF_Z;
-        //=========================
-        PrivateData._uORB_MPU9250_A_Static_X = PrivateData._uORB_MPU9250_A_Static_Raw_X * cos(-1 * PrivateData._uORB_Real__Roll * (PI / 180.f));
-        PrivateData._uORB_MPU9250_A_Static_X += PrivateData._uORB_MPU9250_A_Static_Raw_Z * sin(-1 * PrivateData._uORB_Real__Roll * (PI / 180.f));
-
-        PrivateData._uORB_MPU9250_A_Static_Y = PrivateData._uORB_MPU9250_A_Static_Raw_Y * cos(-1 * PrivateData._uORB_Real_Pitch * (PI / 180.f));
-        PrivateData._uORB_MPU9250_A_Static_Y += PrivateData._uORB_MPU9250_A_Static_Raw_Z * sin(-1 * PrivateData._uORB_Real_Pitch * (PI / 180.f));
-        //=========================
-        PrivateData._uORB_MPU9250_A_Static_Z = 0;
-        PrivateData._uORB_MPU9250_A_Static_Z += PrivateData._uORB_MPU9250_A_Static_Raw_X * sin(-1 * PrivateData._uORB_Real__Roll * (PI / 180.f));
-        PrivateData._uORB_MPU9250_A_Static_Z += PrivateData._uORB_MPU9250_A_Static_Raw_Y * sin(-1 * PrivateData._uORB_Real_Pitch * (PI / 180.f));
-        PrivateData._uORB_MPU9250_A_Static_Z -= (PrivateData._uORB_MPU9250_A_Static_Raw_Z * cos(-1 * PrivateData._uORB_Real_Pitch * (PI / 180.f)) +
-                                                 PrivateData._uORB_MPU9250_A_Static_Raw_Z * cos(-1 * PrivateData._uORB_Real__Roll * (PI / 180.f))) /
-                                                2.f;
-        //=========================
-        PrivateData._uORB_MPU9250_A_Static_Raw_X -= PrivateData._flag_MPU9250_A_Static_Raw_X_Cali;
-        PrivateData._uORB_MPU9250_A_Static_Raw_Y -= PrivateData._flag_MPU9250_A_Static_Raw_Y_Cali;
-        PrivateData._uORB_MPU9250_A_Static_Raw_Z -= PrivateData._flag_MPU9250_A_Static_Raw_Z_Cali;
-        PrivateData._uORB_MPU9250_A_Static_X -= PrivateData._flag_MPU9250_A_Static_X_Cali;
-        PrivateData._uORB_MPU9250_A_Static_Y -= PrivateData._flag_MPU9250_A_Static_Y_Cali;
-        PrivateData._uORB_MPU9250_A_Static_Z -= PrivateData._flag_MPU9250_A_Static_Z_Cali;
-
-        PrivateData._uORB_Acceleration_X = ((float)PrivateData._uORB_MPU9250_A_Static_X / MPU9250_Accel_LSB) * GravityAccel * 100.f;
-        PrivateData._uORB_Acceleration_Y = ((float)PrivateData._uORB_MPU9250_A_Static_Y / MPU9250_Accel_LSB) * GravityAccel * 100.f;
-        PrivateData._uORB_Acceleration_Z = ((float)PrivateData._uORB_MPU9250_A_Static_Z / MPU9250_Accel_LSB) * GravityAccel * 100.f;
-
         double Roll__Error = (PrivateData._uORB_Real__Roll - PrivateData._uORB_Accel__Roll) * MPUMixTraditionAplah * (1.f / (float)MPUUpdateFreq);
         double Pitch_Error = (PrivateData._uORB_Real_Pitch - PrivateData._uORB_Accel_Pitch) * MPUMixTraditionAplah * (1.f / (float)MPUUpdateFreq);
 
         PrivateData._uORB_Real__Roll -= Roll__Error;
         PrivateData._uORB_Real_Pitch -= Pitch_Error;
+        //========================= //=========================
+        Eigen::AngleAxisd rollAngle((PrivateData._uORB_Real__Roll * (PI / 180.f)), Eigen::Vector3d::UnitZ());
+        Eigen::AngleAxisd pitchAngle((-1.f * PrivateData._uORB_Real_Pitch * (PI / 180.f)), Eigen::Vector3d::UnitY());
+        Eigen::AngleAxisd yawAngle(0, Eigen::Vector3d::UnitX());
+        Eigen::Quaternion<double> q = rollAngle * yawAngle * pitchAngle;
+        Eigen::Matrix3d rotationMatrix = q.normalized().toRotationMatrix();
+        Eigen::Matrix<double, 1, 3> AccelRaw;
+        AccelRaw << PrivateData._uORB_MPU9250_ADF_Z,
+            PrivateData._uORB_MPU9250_ADF_X,
+            PrivateData._uORB_MPU9250_ADF_Y;
+        Eigen::Matrix<double, 1, 3> AccelStatic = AccelRaw * rotationMatrix;
+        PrivateData._uORB_MPU9250_A_Static_Z = AccelStatic[0] - MPUGStandard;
+        PrivateData._uORB_MPU9250_A_Static_X = -1.f * AccelStatic[1];
+        PrivateData._uORB_MPU9250_A_Static_Y = -1.f * AccelStatic[2];
+        PrivateData._uORB_Acceleration_X = ((float)PrivateData._uORB_MPU9250_A_Static_X / MPU9250_Accel_LSB) * GravityAccel * 100.f;
+        PrivateData._uORB_Acceleration_Y = ((float)PrivateData._uORB_MPU9250_A_Static_Y / MPU9250_Accel_LSB) * GravityAccel * 100.f;
+        PrivateData._uORB_Acceleration_Z = ((float)PrivateData._uORB_MPU9250_A_Static_Z / MPU9250_Accel_LSB) * GravityAccel * 100.f;
 
         return PrivateData;
     }
