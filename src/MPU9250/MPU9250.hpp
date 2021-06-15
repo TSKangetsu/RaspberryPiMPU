@@ -91,6 +91,8 @@ struct MPUData
     double _flag_MPU9250_A_X_Cali;
     double _flag_MPU9250_A_Y_Cali;
     double _flag_MPU9250_A_Z_Cali;
+
+    Eigen::Matrix3d _uORB_MPU9250_RotationMatrix;
 };
 
 class RPiMPU9250
@@ -367,12 +369,12 @@ public:
         Eigen::AngleAxisd pitchAngle((-1.f * PrivateData._uORB_Real_Pitch * (PI / 180.f)), Eigen::Vector3d::UnitY());
         Eigen::AngleAxisd yawAngle(0, Eigen::Vector3d::UnitX());
         Eigen::Quaternion<double> q = rollAngle * yawAngle * pitchAngle;
-        Eigen::Matrix3d rotationMatrix = q.normalized().toRotationMatrix();
+        PrivateData._uORB_MPU9250_RotationMatrix = q.normalized().toRotationMatrix();
         Eigen::Matrix<double, 1, 3> AccelRaw;
         AccelRaw << PrivateData._uORB_MPU9250_ADF_Z,
             PrivateData._uORB_MPU9250_ADF_X,
             PrivateData._uORB_MPU9250_ADF_Y;
-        Eigen::Matrix<double, 1, 3> AccelStatic = AccelRaw * rotationMatrix;
+        Eigen::Matrix<double, 1, 3> AccelStatic = AccelRaw * PrivateData._uORB_MPU9250_RotationMatrix;
         PrivateData._uORB_MPU9250_A_Static_Z = AccelStatic[0] - MPUGStandard;
         PrivateData._uORB_MPU9250_A_Static_X = -1.f * AccelStatic[1];
         PrivateData._uORB_MPU9250_A_Static_Y = -1.f * AccelStatic[2];
