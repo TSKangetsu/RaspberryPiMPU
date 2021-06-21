@@ -1,14 +1,16 @@
-#include "filter.h"
 #include <math.h>
+#include <vector>
 #include <thread>
 #include <unistd.h>
 #include <wiringPi.h>
 #include <wiringPiI2C.h>
 #include <wiringPiSPI.h>
+
+#include "filter.h"
+#include "FFTPlugin.hpp"
 #include "../_thirdparty/libeigen/Eigen/Dense"
 #include "../_thirdparty/libeigen/Eigen/LU"
 
-#define PI 3.1415926
 #define MPUTypeI2C 0
 #define MPUTypeSPI 1
 #define MPUMixKalman 1
@@ -53,11 +55,11 @@ struct MPUData
     float _uORB_MPU9250_ADF_Y = 0;
     float _uORB_MPU9250_ADF_Z = 0;
 
-    float _uORB_MPU9250_A_Vector = 0;
-    float _uORB_MPU9250_A_Static_Vector = 0;
     int _uORB_MPU9250_A_Static_X = 0;
     int _uORB_MPU9250_A_Static_Y = 0;
     int _uORB_MPU9250_A_Static_Z = 0;
+    float _uORB_MPU9250_A_Vector = 0;
+    float _uORB_MPU9250_A_Static_Vector = 0;
 
     float _uORB_Gryo__Roll = 0;
     float _uORB_Gryo_Pitch = 0;
@@ -86,6 +88,8 @@ struct MPUData
     double _flag_MPU9250_A_Y_Cali;
     double _flag_MPU9250_A_Z_Cali;
 
+    double _uORB_Gyro_Dynamic_NotchCutOff;
+    double _uORB_Gyro_Dynamic_NotchCenterHZ;
     Eigen::Matrix3d _uORB_MPU9250_RotationMatrix;
 };
 
@@ -97,7 +101,8 @@ public:
                       float MPUMixAplah = 0.9996,
                       int GFilterType = FilterLPFBiquad, int GCutOff = 256,
                       int AccFilterType = FilterLPFBiquad, int AccCutOff = 15,
-                      int NotchCenterFreq = 180, int NotchCutoffFreq = 0)
+                      int NotchCenterFreq = 180, int NotchCutoffFreq = 0,
+                      bool DynamicNotchEnable = false)
     {
         MPU9250_Type = Type;
         MPUUpdateFreq = UpdateFreq;
@@ -111,6 +116,7 @@ public:
 
         GyroNotchCutOff = NotchCutoffFreq;
         GyroNotchCenterFreq = NotchCenterFreq;
+        GyroDynamicNotchEnable = DynamicNotchEnable;
 
         int DT = (float)(1.f / (float)UpdateFreq) * 1000000;
         switch (GryoFilterType)
@@ -128,9 +134,12 @@ public:
             break;
         }
 
-        biquadFilterInit(&GryoFilterDynamicNotchX, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
-        biquadFilterInit(&GryoFilterDynamicNotchY, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
-        biquadFilterInit(&GryoFilterDynamicNotchZ, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
+        if (DynamicNotchEnable)
+        {
+            biquadFilterInit(&GryoFilterDynamicNotchX, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
+            biquadFilterInit(&GryoFilterDynamicNotchY, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
+            biquadFilterInit(&GryoFilterDynamicNotchZ, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
+        }
 
         switch (AccelFilterType)
         {
@@ -320,6 +329,10 @@ public:
             PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GyroNotch_Roll, PrivateData._uORB_Gryo__Roll);
             PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GyroNotch__Yaw, PrivateData._uORB_Gryo___Yaw);
         }
+        if (GyroDynamicNotchEnable)
+        {
+            IMUDynamicNotchUpdate();
+        }
         //
         switch (AccelFilterType)
         {
@@ -457,6 +470,22 @@ private:
         }
     }
 
+    //UpdateFilter every 20ms
+    inline void IMUDynamicNotchUpdate()
+    {
+        FFTData[FFTCountDown].Re = sqrt((pow(PrivateData._uORB_Gryo_Pitch, 2) +
+                                         pow(PrivateData._uORB_Gryo__Roll, 2) +
+                                         pow(PrivateData._uORB_Gryo___Yaw, 2)));
+        FFTData[FFTCountDown].Im = 0;
+
+        if (FFTCountDown >= 256)
+        {
+            fft(FFTData, 256, FFTDataTmp);
+            FFTCountDown = 0;
+        }
+        FFTCountDown++;
+    };
+
     int MPU9250_fd;
     int MPUUpdateFreq = 1000;
     float MPU9250_Gryo_LSB = 65.5;
@@ -486,6 +515,10 @@ private:
     biquadFilter_t GryoFilterBLPFY;
     biquadFilter_t GryoFilterBLPFZ;
 
+    bool GyroDynamicNotchEnable = false;
+    int FFTCountDown = 0;
+    complex FFTData[256];
+    complex FFTDataTmp[256];
     biquadFilter_t GryoFilterDynamicNotchX;
     biquadFilter_t GryoFilterDynamicNotchY;
     biquadFilter_t GryoFilterDynamicNotchZ;
