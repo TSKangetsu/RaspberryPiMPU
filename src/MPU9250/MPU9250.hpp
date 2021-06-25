@@ -88,6 +88,7 @@ struct MPUData
     double _flag_MPU9250_A_Y_Cali;
     double _flag_MPU9250_A_Z_Cali;
 
+    int *FFTSampleBox;
     double _uORB_Gyro_Dynamic_NotchCutOff;
     double _uORB_Gyro_Dynamic_NotchCenterHZ;
     Eigen::Matrix3d _uORB_MPU9250_RotationMatrix;
@@ -102,7 +103,7 @@ public:
                       int GFilterType = FilterLPFBiquad, int GCutOff = 256,
                       int AccFilterType = FilterLPFBiquad, int AccCutOff = 15,
                       int NotchCenterFreq = 180, int NotchCutoffFreq = 0,
-                      bool DynamicNotchEnable = false)
+                      bool DynamicNotchEnable = false, int MinimemBox = 3, int MaxCutOffBox = 5)
     {
         MPU9250_Type = Type;
         MPUUpdateFreq = UpdateFreq;
@@ -114,9 +115,16 @@ public:
         AccelFilterType = AccFilterType;
         MPUMixTraditionAplah = MPUMixAplah;
 
+        GyroNotchMinBox = MinimemBox;
+        GyroNotchMaxBox = MaxCutOffBox;
         GyroNotchCutOff = NotchCutoffFreq;
         GyroNotchCenterFreq = NotchCenterFreq;
         GyroDynamicNotchEnable = DynamicNotchEnable;
+        PrivateData.FFTSampleBox = new int[16];
+        for (size_t i = 0; i < 16; i++)
+        {
+            PrivateData.FFTSampleBox[i] = 0;
+        }
 
         int DT = (float)(1.f / (float)UpdateFreq) * 1000000;
         switch (GryoFilterType)
@@ -133,14 +141,6 @@ public:
             biquadFilterInitLPF(&GryoFilterBLPFZ, GCutOff, DT);
             break;
         }
-
-        if (DynamicNotchEnable)
-        {
-            biquadFilterInit(&GryoFilterDynamicNotchX, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
-            biquadFilterInit(&GryoFilterDynamicNotchY, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
-            biquadFilterInit(&GryoFilterDynamicNotchZ, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
-        }
-
         switch (AccelFilterType)
         {
         case FilterLPFPT1:
@@ -167,6 +167,12 @@ public:
             biquadFilterInitNotch(&GyroNotchPitch, DT, GyroNotchCenterFreq, GyroNotchCutOff);
             biquadFilterInitNotch(&GyroNotch_Roll, DT, GyroNotchCenterFreq, GyroNotchCutOff);
             biquadFilterInitNotch(&GyroNotch__Yaw, DT, GyroNotchCenterFreq, GyroNotchCutOff);
+        }
+        else if (DynamicNotchEnable)
+        {
+            biquadFilterInit(&GryoFilterDynamicNotchX, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
+            biquadFilterInit(&GryoFilterDynamicNotchY, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
+            biquadFilterInit(&GryoFilterDynamicNotchZ, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
         }
 
         pt1FilterInit(&VibeFloorLPFX, ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
@@ -323,16 +329,29 @@ public:
             PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterBLPFZ, ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB));
             break;
         }
+        //
         if (GyroNotchCutOff)
         {
             PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GyroNotchPitch, PrivateData._uORB_Gryo_Pitch);
             PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GyroNotch_Roll, PrivateData._uORB_Gryo__Roll);
             PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GyroNotch__Yaw, PrivateData._uORB_Gryo___Yaw);
         }
-        if (GyroDynamicNotchEnable)
+        else if (GyroDynamicNotchEnable)
         {
-            IMUDynamicNotchUpdate();
+            PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterDynamicNotchX, PrivateData._uORB_Gryo_Pitch);
+            PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterDynamicNotchY, PrivateData._uORB_Gryo__Roll);
+            PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterDynamicNotchZ, PrivateData._uORB_Gryo___Yaw);
         }
+        if (GyroDynamicNotchEnable && GyroDynamicNotchSample)
+        {
+            if (GyroNotchCutOff == 0)
+            {
+                IMUDynamicNotchUpdate();
+                GyroDynamicNotchSample = false;
+            }
+        }
+        else
+            GyroDynamicNotchSample = true;
         //
         switch (AccelFilterType)
         {
@@ -470,17 +489,104 @@ private:
         }
     }
 
-    //UpdateFilter every 20ms
     inline void IMUDynamicNotchUpdate()
     {
-        FFTData[FFTCountDown].Re = sqrt((pow(PrivateData._uORB_Gryo_Pitch, 2) +
-                                         pow(PrivateData._uORB_Gryo__Roll, 2) +
-                                         pow(PrivateData._uORB_Gryo___Yaw, 2)));
+        FFTData[FFTCountDown].Re = PrivateData._uORB_Gryo__Roll;
         FFTData[FFTCountDown].Im = 0;
 
-        if (FFTCountDown >= 256)
+        if (FFTCountDown > 16)
         {
-            fft(FFTData, 256, FFTDataTmp);
+            fft(FFTData, 16, FFTDataTmp);
+            for (size_t i = 0; i < 16; i++)
+            {
+                PrivateData.FFTSampleBox[i] = sqrt((FFTData[i].Re * FFTData[i].Re + FFTData[i].Im * FFTData[i].Im));
+            }
+
+            // int FFTBOX[16] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0};
+            // for (size_t j = 0; j < 16; j++)
+            // {
+            //     PrivateData.FFTSampleBox[j] = FFTBOX[j];
+            // }
+
+            //This Part is from betaflight/INAV
+            {
+                int IndexMax = 0;
+                int DataMax = 0;
+                int IndexStart = 0;
+                int CenterFreq = 512;
+                bool FFTIncreased = false;
+
+                for (int i = GyroNotchMinBox; i > 16; i++)
+                {
+                    if (FFTIncreased || (PrivateData.FFTSampleBox[i] > PrivateData.FFTSampleBox[i - 1]))
+                    {
+                        if (!FFTIncreased)
+                        {
+                            IndexStart = i;
+                            FFTIncreased = true;
+                        }
+                        if (PrivateData.FFTSampleBox[i] > DataMax)
+                        {
+                            DataMax = PrivateData.FFTSampleBox[i];
+                            IndexMax = i;
+                        }
+                    }
+                }
+
+                if (FFTIncreased)
+                {
+                    float cubedData = PrivateData.FFTSampleBox[IndexMax] * PrivateData.FFTSampleBox[IndexMax] * PrivateData.FFTSampleBox[IndexMax];
+                    float fftSum = cubedData;
+                    float fftWeightedSum = cubedData * (IndexMax + 1);
+                    // accumulate upper shoulder
+                    for (int i = IndexMax; i < 16 - 1; i++)
+                    {
+                        if (PrivateData.FFTSampleBox[i] > PrivateData.FFTSampleBox[i + 1])
+                        {
+                            cubedData = PrivateData.FFTSampleBox[i] * PrivateData.FFTSampleBox[i] * PrivateData.FFTSampleBox[i];
+                            fftSum += cubedData;
+                            fftWeightedSum += cubedData * (i + 1);
+                        }
+                        else
+                            break;
+                    }
+                    // accumulate lower shoulder
+                    for (int i = IndexMax; i > IndexStart + 1; i--)
+                    {
+                        if (PrivateData.FFTSampleBox[i] > PrivateData.FFTSampleBox[i - 1])
+                        {
+                            cubedData = PrivateData.FFTSampleBox[i] * PrivateData.FFTSampleBox[i] * PrivateData.FFTSampleBox[i];
+                            fftSum += cubedData;
+                            fftWeightedSum += cubedData * (i + 1);
+                        }
+                        else
+                            break;
+                    }
+
+                    float fftMeanIndex = 0;
+                    if (fftSum > 0)
+                    {
+                        fftMeanIndex = (fftWeightedSum / fftSum) - 1;
+                        CenterFreq = fftMeanIndex * 32.f;
+                    }
+                    else
+                    {
+                        CenterFreq = GyroDynamicNotchCenterLast;
+                    }
+                }
+                else
+                {
+                    CenterFreq = GyroDynamicNotchCenterLast;
+                }
+                GyroDynamicNotchCenterLast = CenterFreq;
+                PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ = CenterFreq;
+                int DT = (float)(1.f / (float)MPUUpdateFreq) * 1000000;
+                float Q = filterGetNotchQ(PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ, 50);
+                biquadFilterUpdate(&GryoFilterDynamicNotchX, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ, DT, Q, FILTER_NOTCH);
+                biquadFilterUpdate(&GryoFilterDynamicNotchY, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ, DT, Q, FILTER_NOTCH);
+                biquadFilterUpdate(&GryoFilterDynamicNotchZ, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ, DT, Q, FILTER_NOTCH);
+            }
+
             FFTCountDown = 0;
         }
         FFTCountDown++;
@@ -515,10 +621,12 @@ private:
     biquadFilter_t GryoFilterBLPFY;
     biquadFilter_t GryoFilterBLPFZ;
 
+    bool GyroDynamicNotchSample = false;
     bool GyroDynamicNotchEnable = false;
     int FFTCountDown = 0;
     complex FFTData[256];
     complex FFTDataTmp[256];
+    int GyroDynamicNotchCenterLast = 256;
     biquadFilter_t GryoFilterDynamicNotchX;
     biquadFilter_t GryoFilterDynamicNotchY;
     biquadFilter_t GryoFilterDynamicNotchZ;
@@ -544,6 +652,8 @@ private:
     pt1Filter_t VibeLPFY;
     pt1Filter_t VibeLPFZ;
 
+    int GyroNotchMinBox;
+    int GyroNotchMaxBox;
     int GyroNotchCutOff;
     int GyroNotchCenterFreq;
     biquadFilter_t GyroNotchPitch;
