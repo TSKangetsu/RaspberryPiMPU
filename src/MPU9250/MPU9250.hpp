@@ -372,42 +372,12 @@ public:
                                                   (PrivateData._uORB_MPU9250_A_Z * PrivateData._uORB_MPU9250_A_Z));
         PrivateData._uORB_Accel_Pitch = atan2((float)PrivateData._uORB_MPU9250_ADF_Y, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
         PrivateData._uORB_Accel__Roll = atan2((float)PrivateData._uORB_MPU9250_ADF_X, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
-        if (PrivateData._uORB_Accel_Pitch > 90.f)
-            PrivateData._uORB_Accel_Pitch = 180.f - PrivateData._uORB_Accel_Pitch;
-        else if (PrivateData._uORB_Accel_Pitch < -90.f)
-            PrivateData._uORB_Accel_Pitch = -1 * (180.f - (-1 * PrivateData._uORB_Accel_Pitch));
-
-        if (PrivateData._uORB_Accel__Roll > 90.f)
-            PrivateData._uORB_Accel__Roll = 180.f - PrivateData._uORB_Accel__Roll;
-        else if (PrivateData._uORB_Accel__Roll < -90.f)
-            PrivateData._uORB_Accel__Roll = -1 * (180.f - (-1 * PrivateData._uORB_Accel__Roll));
         //========================= //=========================
-        if (PrivateData._uORB_Real__Roll > 90.f)
-        {
-            GryoReveresRoll *= -1;
-            PrivateData._uORB_Real_Reverse = !PrivateData._uORB_Real_Reverse;
-        }
-        if (PrivateData._uORB_Real__Roll < -90.f)
-        {
-            GryoReveresRoll *= -1;
-            PrivateData._uORB_Real_Reverse = !PrivateData._uORB_Real_Reverse;
-        }
-        if (PrivateData._uORB_Real_Pitch > 90.f)
-        {
-            GryoReveresPitch *= -1;
-            PrivateData._uORB_Real_Reverse = !PrivateData._uORB_Real_Reverse;
-        }
-        if (PrivateData._uORB_Real_Pitch < -90.f)
-        {
-            GryoReveresPitch *= -1;
-            PrivateData._uORB_Real_Reverse = !PrivateData._uORB_Real_Reverse;
-        }
+        PrivateData._uORB_Real__Roll += (PrivateData._uORB_Gryo__Roll * (1.f / (float)MPUUpdateFreq));
+        PrivateData._uORB_Real_Pitch += (PrivateData._uORB_Gryo_Pitch * (1.f / (float)MPUUpdateFreq));
 
-        PrivateData._uORB_Real__Roll += (float)GryoReveresRoll * (((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB) / (float)MPUUpdateFreq);
-        PrivateData._uORB_Real_Pitch += (float)GryoReveresPitch * (((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB) / (float)MPUUpdateFreq);
-
-        PrivateData._uORB_Real_Pitch += PrivateData._uORB_Real__Roll * sin(((float)PrivateData._uORB_MPU9250_G_Z / (float)MPUUpdateFreq / MPU9250_Gryo_LSB) * (PI / 180.f));
-        PrivateData._uORB_Real__Roll -= PrivateData._uORB_Real_Pitch * sin(((float)PrivateData._uORB_MPU9250_G_Z / (float)MPUUpdateFreq / MPU9250_Gryo_LSB) * (PI / 180.f));
+        PrivateData._uORB_Real_Pitch += PrivateData._uORB_Real__Roll * sin((PrivateData._uORB_Gryo___Yaw * (1.f / (float)MPUUpdateFreq)) * (PI / 180.f));
+        PrivateData._uORB_Real__Roll -= PrivateData._uORB_Real_Pitch * sin((PrivateData._uORB_Gryo___Yaw * (1.f / (float)MPUUpdateFreq)) * (PI / 180.f));
         double Roll__Error = (PrivateData._uORB_Real__Roll - PrivateData._uORB_Accel__Roll) * MPUMixTraditionAplah * (1.f / (float)MPUUpdateFreq);
         double Pitch_Error = (PrivateData._uORB_Real_Pitch - PrivateData._uORB_Accel_Pitch) * MPUMixTraditionAplah * (1.f / (float)MPUUpdateFreq);
 
@@ -605,9 +575,6 @@ private:
     unsigned char Tmp_MPU9250_Buffer[20] = {0};
     unsigned char Tmp_MPU9250_SPI_Buffer[20] = {0};
     MPUData PrivateData;
-
-    int GryoReveresPitch = 1;
-    int GryoReveresRoll = 1;
 
     int GryoFilterType;
     int AccelFilterType;
