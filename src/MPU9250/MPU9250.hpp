@@ -88,7 +88,7 @@ struct MPUData
     double _flag_MPU9250_A_Y_Cali;
     double _flag_MPU9250_A_Z_Cali;
 
-    int *FFTSampleBox;
+    float FFTSampleBox[25];
     double _uORB_Gyro_Dynamic_NotchCutOff;
     double _uORB_Gyro_Dynamic_NotchCenterHZ;
     Eigen::Matrix3d _uORB_MPU9250_RotationMatrix;
@@ -120,10 +120,9 @@ public:
         GyroNotchCutOff = NotchCutoffFreq;
         GyroNotchCenterFreq = NotchCenterFreq;
         GyroDynamicNotchEnable = DynamicNotchEnable;
-        PrivateData.FFTSampleBox = new int[16];
         for (size_t i = 0; i < 16; i++)
         {
-            PrivateData.FFTSampleBox[i] = 0;
+            PrivateData.FFTSampleBox[i] = 0.f;
         }
 
         int DT = (float)(1.f / (float)UpdateFreq) * 1000000;
@@ -147,18 +146,12 @@ public:
             pt1FilterInit(&AccelFilterLPFX, AccCutOff, DT * 1e-6f);
             pt1FilterInit(&AccelFilterLPFY, AccCutOff, DT * 1e-6f);
             pt1FilterInit(&AccelFilterLPFZ, AccCutOff, DT * 1e-6f);
-            pt1FilterInit(&FakeAccelFilterLPFX, AccCutOff, DT * 1e-6f);
-            pt1FilterInit(&FakeAccelFilterLPFY, AccCutOff, DT * 1e-6f);
-            pt1FilterInit(&FakeAccelFilterLPFZ, AccCutOff, DT * 1e-6f);
             break;
 
         case FilterLPFBiquad:
             biquadFilterInitLPF(&AccelFilterBLPFX, AccCutOff, DT);
             biquadFilterInitLPF(&AccelFilterBLPFY, AccCutOff, DT);
             biquadFilterInitLPF(&AccelFilterBLPFZ, AccCutOff, DT);
-            biquadFilterInitLPF(&FakeAccelFilterBLPFX, AccCutOff, DT);
-            biquadFilterInitLPF(&FakeAccelFilterBLPFY, AccCutOff, DT);
-            biquadFilterInitLPF(&FakeAccelFilterBLPFZ, AccCutOff, DT);
             break;
         }
 
@@ -342,16 +335,16 @@ public:
             PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterDynamicNotchY, PrivateData._uORB_Gryo__Roll);
             PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterDynamicNotchZ, PrivateData._uORB_Gryo___Yaw);
         }
-        if (GyroDynamicNotchEnable && GyroDynamicNotchSample)
+        if (GyroDynamicNotchEnable && GyroDynamicNotchSample == (MPUUpdateFreq / 500))
         {
             if (GyroNotchCutOff == 0)
             {
                 IMUDynamicNotchUpdate();
-                GyroDynamicNotchSample = false;
+                GyroDynamicNotchSample = 0;
             }
         }
         else
-            GyroDynamicNotchSample = true;
+            GyroDynamicNotchSample++;
         //
         switch (AccelFilterType)
         {
@@ -459,10 +452,12 @@ private:
         }
     }
 
+    //Collect GryoData only 500HZ
     inline void IMUDynamicNotchUpdate()
     {
-        FFTData[FFTCountDown].Re = PrivateData._uORB_Gryo__Roll;
+        FFTData[FFTCountDown].Re = PrivateData._uORB_Gryo__Roll / 500.f;
         FFTData[FFTCountDown].Im = 0;
+        FFTCountDown++;
 
         if (FFTCountDown > 16)
         {
@@ -472,21 +467,15 @@ private:
                 PrivateData.FFTSampleBox[i] = sqrt((FFTData[i].Re * FFTData[i].Re + FFTData[i].Im * FFTData[i].Im));
             }
 
-            // int FFTBOX[16] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0};
-            // for (size_t j = 0; j < 16; j++)
-            // {
-            //     PrivateData.FFTSampleBox[j] = FFTBOX[j];
-            // }
-
             //This Part is from betaflight/INAV
             {
                 int IndexMax = 0;
                 int DataMax = 0;
                 int IndexStart = 0;
-                int CenterFreq = 512;
+                int CenterFreq = 250;
                 bool FFTIncreased = false;
 
-                for (int i = GyroNotchMinBox; i > 16; i++)
+                for (int i = GyroNotchMinBox; i < 8; i++)
                 {
                     if (FFTIncreased || (PrivateData.FFTSampleBox[i] > PrivateData.FFTSampleBox[i - 1]))
                     {
@@ -509,7 +498,7 @@ private:
                     float fftSum = cubedData;
                     float fftWeightedSum = cubedData * (IndexMax + 1);
                     // accumulate upper shoulder
-                    for (int i = IndexMax; i < 16 - 1; i++)
+                    for (int i = IndexMax; i < 8; i++)
                     {
                         if (PrivateData.FFTSampleBox[i] > PrivateData.FFTSampleBox[i + 1])
                         {
@@ -537,7 +526,7 @@ private:
                     if (fftSum > 0)
                     {
                         fftMeanIndex = (fftWeightedSum / fftSum) - 1;
-                        CenterFreq = fftMeanIndex * 32.f;
+                        CenterFreq = fftMeanIndex * 31.25;
                     }
                     else
                     {
@@ -551,7 +540,8 @@ private:
                 GyroDynamicNotchCenterLast = CenterFreq;
                 PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ = CenterFreq;
                 int DT = (float)(1.f / (float)MPUUpdateFreq) * 1000000;
-                float Q = filterGetNotchQ(PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ, 50);
+                int Cut = (GyroNotchMaxBox * 31.25);
+                float Q = filterGetNotchQ(PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ, Cut);
                 biquadFilterUpdate(&GryoFilterDynamicNotchX, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ, DT, Q, FILTER_NOTCH);
                 biquadFilterUpdate(&GryoFilterDynamicNotchY, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ, DT, Q, FILTER_NOTCH);
                 biquadFilterUpdate(&GryoFilterDynamicNotchZ, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ, DT, Q, FILTER_NOTCH);
@@ -559,7 +549,6 @@ private:
 
             FFTCountDown = 0;
         }
-        FFTCountDown++;
     };
 
     int MPU9250_fd;
@@ -588,12 +577,12 @@ private:
     biquadFilter_t GryoFilterBLPFY;
     biquadFilter_t GryoFilterBLPFZ;
 
-    bool GyroDynamicNotchSample = false;
+    int GyroDynamicNotchSample = 0;
     bool GyroDynamicNotchEnable = false;
     int FFTCountDown = 0;
-    complex FFTData[256];
-    complex FFTDataTmp[256];
-    int GyroDynamicNotchCenterLast = 256;
+    complex FFTData[25];
+    complex FFTDataTmp[25];
+    int GyroDynamicNotchCenterLast = 250;
     biquadFilter_t GryoFilterDynamicNotchX;
     biquadFilter_t GryoFilterDynamicNotchY;
     biquadFilter_t GryoFilterDynamicNotchZ;
@@ -601,16 +590,10 @@ private:
     pt1Filter_t AccelFilterLPFX;
     pt1Filter_t AccelFilterLPFY;
     pt1Filter_t AccelFilterLPFZ;
-    pt1Filter_t FakeAccelFilterLPFX;
-    pt1Filter_t FakeAccelFilterLPFY;
-    pt1Filter_t FakeAccelFilterLPFZ;
 
     biquadFilter_t AccelFilterBLPFX;
     biquadFilter_t AccelFilterBLPFY;
     biquadFilter_t AccelFilterBLPFZ;
-    biquadFilter_t FakeAccelFilterBLPFX;
-    biquadFilter_t FakeAccelFilterBLPFY;
-    biquadFilter_t FakeAccelFilterBLPFZ;
 
     pt1Filter_t VibeFloorLPFX;
     pt1Filter_t VibeFloorLPFY;
