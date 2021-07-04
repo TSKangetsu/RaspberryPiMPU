@@ -457,7 +457,8 @@ private:
     //Collect GryoData 1000HZ and DownSample to 500hz by 1/2
     inline void IMUDynamicNotchUpdate()
     {
-        FFTOverSample[FFTOverSampleCount] = PrivateData._uORB_Gryo__Roll;
+        FFTOverSample[FFTOverSampleCount] = sqrt(PrivateData._uORB_Gryo__Roll * PrivateData._uORB_Gryo__Roll +
+                                                 PrivateData._uORB_Gryo_Pitch * PrivateData._uORB_Gryo_Pitch);
         FFTOverSampleCount++;
 
         if (FFTOverSampleCount >= (MPUUpdateFreq / 1000))
