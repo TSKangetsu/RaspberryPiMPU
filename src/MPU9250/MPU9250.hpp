@@ -414,6 +414,7 @@ public:
     // This function set Total Angle to Accel Angle immediately , Require MPUSensorsDataGet() finish
     inline void ResetMPUMixAngle()
     {
+        AHRSSys->MadgwickResetToAccel();
     }
 
 private:

@@ -6,6 +6,7 @@ public:
 	MadgwickAHRS(float MixBeta, int SampleHZ)
 	{
 		beta = MixBeta;
+		betaConfig = MixBeta;
 		q0 = 1.0f;
 		q1 = 0.0f;
 		q2 = 0.0f;
@@ -190,6 +191,8 @@ public:
 		q1 *= recipNorm;
 		q2 *= recipNorm;
 		q3 *= recipNorm;
+
+		beta = betaConfig;
 	}
 
 	void MadgwickAHRSGetQ(float &Q0, float &Q1, float &Q2, float &Q3)
@@ -207,8 +210,14 @@ public:
 		yaw = atan2f(q1 * q2 + q0 * q3, 0.5f - q2 * q2 - q3 * q3);
 	}
 
+	void MadgwickResetToAccel()
+	{
+		beta = 1.0;
+	}
+
 private:
 	float beta = 0;
+	float betaConfig = 0;
 	float SampleRate = 0;
 	float q0 = 1.0f, q1 = 0.0f, q2 = 0.0f, q3 = 0.0f;
 
