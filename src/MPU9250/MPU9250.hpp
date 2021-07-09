@@ -8,6 +8,7 @@
 
 #include "filter.h"
 #include "FFTPlugin.hpp"
+#include "MadgwickAHRS.hpp"
 #include "../_thirdparty/libeigen/Eigen/Dense"
 #include "../_thirdparty/libeigen/Eigen/LU"
 
@@ -67,12 +68,13 @@ struct MPUData
     float _uORB_Gryo___Yaw = 0;
     float _uORB_Real__Roll = 0;
     float _uORB_Real_Pitch = 0;
+    float _uORB_Real___Yaw = 0;
     float _uORB_Accel__Roll = 0;
     float _uORB_Accel_Pitch = 0;
     float _uORB_Acceleration_X = 0;
     float _uORB_Acceleration_Y = 0;
     float _uORB_Acceleration_Z = 0;
-    bool _uORB_Real_Reverse = false;
+    float _uORB_Raw_QuaternionQ[4] = {0};
 
     float _uORB_Accel_VIBE_X = 0;
     float _uORB_Accel_VIBE_Y = 0;
@@ -93,6 +95,7 @@ struct MPUData
     double _uORB_Gyro_Dynamic_NotchCutOff;
     double _uORB_Gyro_Dynamic_NotchCenterHZ;
     Eigen::Matrix3d _uORB_MPU9250_RotationMatrix;
+    Eigen::Quaternion<double> _uORB_MPU9250_Quaternion;
 };
 
 class RPiMPU9250
@@ -100,7 +103,7 @@ class RPiMPU9250
 public:
     inline RPiMPU9250(int Type = MPUTypeSPI, bool IsBuildInCompassEnable = false,
                       int MPUSPIChannel = 1, unsigned char MPUI2CAddr = 0x68, int UpdateFreq = 1000,
-                      float MPUMixAplah = 0.9996,
+                      float MPUMixAplah = 0.02,
                       int GFilterType = FilterLPFBiquad, int GCutOff = 256,
                       int AccFilterType = FilterLPFBiquad, int AccCutOff = 15,
                       int NotchCenterFreq = 180, int NotchCutoffFreq = 0,
@@ -125,6 +128,8 @@ public:
         {
             PrivateData.FFTSampleBox[i] = 0.f;
         }
+
+        AHRSSys = new MadgwickAHRS(MPUMixAplah, UpdateFreq);
 
         int DT = (float)(1.f / (float)UpdateFreq) * 1000000;
         switch (GryoFilterType)
@@ -361,33 +366,40 @@ public:
             PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelFilterBLPFZ, (float)PrivateData._uORB_MPU9250_A_Z);
             break;
         }
-        //
+        //========================= //=========================
+        AHRSSys->MadgwickAHRSupdateIMU(PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo___Yaw,
+                                       (-1.f * PrivateData._uORB_MPU9250_ADF_X / MPU9250_Accel_LSB),
+                                       (PrivateData._uORB_MPU9250_ADF_Y / MPU9250_Accel_LSB),
+                                       (PrivateData._uORB_MPU9250_ADF_Z / MPU9250_Accel_LSB));
+        AHRSSys->MadgwickAHRSGetQ(PrivateData._uORB_Raw_QuaternionQ[0],
+                                  PrivateData._uORB_Raw_QuaternionQ[1],
+                                  PrivateData._uORB_Raw_QuaternionQ[2],
+                                  PrivateData._uORB_Raw_QuaternionQ[3]);
+        AHRSSys->MadgwickComputeAngles(PrivateData._uORB_Real_Pitch, PrivateData._uORB_Real__Roll, PrivateData._uORB_Real___Yaw);
+        PrivateData._uORB_Real__Roll *= 180.f / PI;
+        PrivateData._uORB_Real_Pitch *= 180.f / PI;
+        PrivateData._uORB_Real___Yaw *= 180.f / PI;
+        // PrivateData._uORB_MPU9250_Quaternion.x() = PrivateData._uORB_Raw_QuaternionQ[1];
+        // PrivateData._uORB_MPU9250_Quaternion.y() = PrivateData._uORB_Raw_QuaternionQ[2];
+        // PrivateData._uORB_MPU9250_Quaternion.z() = PrivateData._uORB_Raw_QuaternionQ[3];
+        // PrivateData._uORB_MPU9250_Quaternion.w() = PrivateData._uORB_Raw_QuaternionQ[0];
+        //========================= //=========================
         PrivateData._uORB_MPU9250_A_Vector = sqrt((PrivateData._uORB_MPU9250_A_X * PrivateData._uORB_MPU9250_A_X) +
                                                   (PrivateData._uORB_MPU9250_A_Y * PrivateData._uORB_MPU9250_A_Y) +
                                                   (PrivateData._uORB_MPU9250_A_Z * PrivateData._uORB_MPU9250_A_Z));
         PrivateData._uORB_Accel_Pitch = atan2((float)PrivateData._uORB_MPU9250_ADF_Y, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
         PrivateData._uORB_Accel__Roll = atan2((float)PrivateData._uORB_MPU9250_ADF_X, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
         //========================= //=========================
-        PrivateData._uORB_Real__Roll += (PrivateData._uORB_Gryo__Roll * (1.f / (float)MPUUpdateFreq));
-        PrivateData._uORB_Real_Pitch += (PrivateData._uORB_Gryo_Pitch * (1.f / (float)MPUUpdateFreq));
+        PrivateData._uORB_MPU9250_Quaternion = Eigen::AngleAxisd((PrivateData._uORB_Real__Roll * (PI / 180.f)), Eigen::Vector3d::UnitZ()) *
+                                               Eigen::AngleAxisd((-1.f * PrivateData._uORB_Real_Pitch * (PI / 180.f)), Eigen::Vector3d::UnitY()) *
+                                               Eigen::AngleAxisd((0 * (PI / 180.f)), Eigen::Vector3d::UnitX());
 
-        PrivateData._uORB_Real_Pitch += PrivateData._uORB_Real__Roll * sin((PrivateData._uORB_Gryo___Yaw * (1.f / (float)MPUUpdateFreq)) * (PI / 180.f));
-        PrivateData._uORB_Real__Roll -= PrivateData._uORB_Real_Pitch * sin((PrivateData._uORB_Gryo___Yaw * (1.f / (float)MPUUpdateFreq)) * (PI / 180.f));
-        double Roll__Error = (PrivateData._uORB_Real__Roll - PrivateData._uORB_Accel__Roll) * MPUMixTraditionAplah * (1.f / (float)MPUUpdateFreq);
-        double Pitch_Error = (PrivateData._uORB_Real_Pitch - PrivateData._uORB_Accel_Pitch) * MPUMixTraditionAplah * (1.f / (float)MPUUpdateFreq);
-
-        PrivateData._uORB_Real__Roll -= Roll__Error;
-        PrivateData._uORB_Real_Pitch -= Pitch_Error;
-        //========================= //=========================
-        Eigen::AngleAxisd rollAngle((PrivateData._uORB_Real__Roll * (PI / 180.f)), Eigen::Vector3d::UnitZ());
-        Eigen::AngleAxisd pitchAngle((-1.f * PrivateData._uORB_Real_Pitch * (PI / 180.f)), Eigen::Vector3d::UnitY());
-        Eigen::AngleAxisd yawAngle(0, Eigen::Vector3d::UnitX());
-        Eigen::Quaternion<double> q = rollAngle * yawAngle * pitchAngle;
-        PrivateData._uORB_MPU9250_RotationMatrix = q.normalized().toRotationMatrix();
+        PrivateData._uORB_MPU9250_RotationMatrix = PrivateData._uORB_MPU9250_Quaternion.normalized().toRotationMatrix();
         Eigen::Matrix<double, 1, 3> AccelRaw;
         AccelRaw << PrivateData._uORB_MPU9250_ADF_Z,
             PrivateData._uORB_MPU9250_ADF_X,
             PrivateData._uORB_MPU9250_ADF_Y;
+        //========================= //=========================
         Eigen::Matrix<double, 1, 3> AccelStatic = AccelRaw * PrivateData._uORB_MPU9250_RotationMatrix;
         PrivateData._uORB_MPU9250_A_Static_Z = AccelStatic[0] - PrivateData._uORB_MPU9250_A_Static_Vector;
         PrivateData._uORB_MPU9250_A_Static_X = -1.f * AccelStatic[1];
@@ -402,12 +414,6 @@ public:
     // This function set Total Angle to Accel Angle immediately , Require MPUSensorsDataGet() finish
     inline void ResetMPUMixAngle()
     {
-        PrivateData._uORB_Real__Roll = PrivateData._uORB_Accel__Roll;
-        PrivateData._uORB_Real_Pitch = PrivateData._uORB_Accel_Pitch;
-        if (PrivateData._uORB_MPU9250_ADF_Z > 0)
-            PrivateData._uORB_Real_Reverse = false;
-        else
-            PrivateData._uORB_Real_Reverse = true;
     }
 
 private:
@@ -581,6 +587,7 @@ private:
     unsigned char Tmp_MPU9250_Buffer[20] = {0};
     unsigned char Tmp_MPU9250_SPI_Buffer[20] = {0};
     MPUData PrivateData;
+    MadgwickAHRS *AHRSSys;
 
     int GryoFilterType;
     int AccelFilterType;
