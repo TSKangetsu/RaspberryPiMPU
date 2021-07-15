@@ -37,7 +37,7 @@
 #define MPUGStandard 4096.f
 
 #define DYNAMIC_NOTCH_DEFAULT_CENTER_HZ 350.f
-#define DYN_NOTCH_SMOOTH_FREQ_HZ 50.f
+#define DYN_NOTCH_SMOOTH_FREQ_HZ 30.f
 #define ACC_VIBE_FLOOR_FILT_HZ 5.f
 #define ACC_VIBE_FILT_HZ 2.f
 
@@ -84,16 +84,15 @@ struct MPUData
     int _flag_MPU9250_G_Y_Cali;
     int _flag_MPU9250_G_Z_Cali;
 
-    double _flag_MPU9250_A_X_Scal;
-    double _flag_MPU9250_A_Y_Scal;
-    double _flag_MPU9250_A_Z_Scal;
-    double _flag_MPU9250_A_X_Cali;
-    double _flag_MPU9250_A_Y_Cali;
-    double _flag_MPU9250_A_Z_Cali;
+    double _flag_MPU9250_A_X_Scal = 1.f;
+    double _flag_MPU9250_A_Y_Scal = 1.f;
+    double _flag_MPU9250_A_Z_Scal = 1.f;
+    double _flag_MPU9250_A_X_Cali = 0;
+    double _flag_MPU9250_A_Y_Cali = 0;
+    double _flag_MPU9250_A_Z_Cali = 0;
 
-    float FFTSampleBox[25];
-    double _uORB_Gyro_Dynamic_NotchCutOff;
-    double _uORB_Gyro_Dynamic_NotchCenterHZ;
+    float FFTSampleBox[25] = {0};
+    float _uORB_Gyro_Dynamic_NotchCenterHZ = 350;
     Eigen::Matrix3d _uORB_MPU9250_RotationMatrix;
     Eigen::Quaternion<double> _uORB_MPU9250_Quaternion;
 };
@@ -107,7 +106,7 @@ public:
                       int GFilterType = FilterLPFBiquad, int GCutOff = 256,
                       int AccFilterType = FilterLPFBiquad, int AccCutOff = 15,
                       int NotchCenterFreq = 180, int NotchCutoffFreq = 0,
-                      bool DynamicNotchEnable = false, int MinimemBox = 3, int MaxCutOffBox = 5)
+                      bool DynamicNotchEnable = false, int MinimemBox = 3, float DynamicNotchQ = 1.2)
     {
         MPU9250_Type = Type;
         MPUUpdateFreq = UpdateFreq;
@@ -120,14 +119,10 @@ public:
         MPUMixTraditionAplah = MPUMixAplah;
 
         GyroNotchMinBox = MinimemBox;
-        GyroNotchMaxBox = MaxCutOffBox;
+        GyroNotchDyQ = DynamicNotchQ;
         GyroNotchCutOff = NotchCutoffFreq;
         GyroNotchCenterFreq = NotchCenterFreq;
         GyroDynamicNotchEnable = DynamicNotchEnable;
-        for (size_t i = 0; i < 16; i++)
-        {
-            PrivateData.FFTSampleBox[i] = 0.f;
-        }
 
         AHRSSys = new MadgwickAHRS(MPUMixAplah, UpdateFreq);
 
@@ -167,7 +162,7 @@ public:
             biquadFilterInitNotch(&GyroNotch_Roll, DT, GyroNotchCenterFreq, GyroNotchCutOff);
             biquadFilterInitNotch(&GyroNotch__Yaw, DT, GyroNotchCenterFreq, GyroNotchCutOff);
         }
-        else if (DynamicNotchEnable)
+        if (DynamicNotchEnable)
         {
             biquadFilterInitLPF(&GryoFilterDynamicFreq, DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(MPUUpdateFreq / 1000) * 2.f)));
             biquadFilterInit(&GryoFilterDynamicNotchX, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
@@ -336,19 +331,24 @@ public:
             PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GyroNotch_Roll, PrivateData._uORB_Gryo__Roll);
             PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GyroNotch__Yaw, PrivateData._uORB_Gryo___Yaw);
         }
-        else if (GyroDynamicNotchEnable)
+        if (GyroDynamicNotchEnable)
         {
+            if (GyroDynamicNotchReady)
+            {
+                int DT = (float)(1.f / (float)MPUUpdateFreq) * 1000000.f;
+                biquadFilterUpdate(&GryoFilterDynamicNotchX, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ, DT, GyroNotchDyQ, FILTER_NOTCH);
+                biquadFilterUpdate(&GryoFilterDynamicNotchY, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ, DT, GyroNotchDyQ, FILTER_NOTCH);
+                biquadFilterUpdate(&GryoFilterDynamicNotchZ, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ, DT, GyroNotchDyQ, FILTER_NOTCH);
+                GyroDynamicNotchReady = false;
+            }
             PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterDynamicNotchX, PrivateData._uORB_Gryo_Pitch);
             PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterDynamicNotchY, PrivateData._uORB_Gryo__Roll);
             PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterDynamicNotchZ, PrivateData._uORB_Gryo___Yaw);
         }
         if (GyroDynamicNotchEnable && GyroDynamicNotchSample == (MPUUpdateFreq / 1000))
         {
-            if (GyroNotchCutOff == 0)
-            {
-                IMUDynamicNotchUpdate();
-                GyroDynamicNotchSample = 0;
-            }
+            IMUDynamicNotchUpdate();
+            GyroDynamicNotchSample = 0;
         }
         else
             GyroDynamicNotchSample++;
@@ -379,10 +379,6 @@ public:
         PrivateData._uORB_Real__Roll *= 180.f / PI;
         PrivateData._uORB_Real_Pitch *= 180.f / PI;
         PrivateData._uORB_Real___Yaw *= 180.f / PI;
-        // PrivateData._uORB_MPU9250_Quaternion.x() = PrivateData._uORB_Raw_QuaternionQ[1];
-        // PrivateData._uORB_MPU9250_Quaternion.y() = PrivateData._uORB_Raw_QuaternionQ[2];
-        // PrivateData._uORB_MPU9250_Quaternion.z() = PrivateData._uORB_Raw_QuaternionQ[3];
-        // PrivateData._uORB_MPU9250_Quaternion.w() = PrivateData._uORB_Raw_QuaternionQ[0];
         //========================= //=========================
         PrivateData._uORB_MPU9250_A_Vector = sqrt((PrivateData._uORB_MPU9250_A_X * PrivateData._uORB_MPU9250_A_X) +
                                                   (PrivateData._uORB_MPU9250_A_Y * PrivateData._uORB_MPU9250_A_Y) +
@@ -464,8 +460,7 @@ private:
     //Collect GryoData 1000HZ and DownSample to 500hz by 1/2
     inline void IMUDynamicNotchUpdate()
     {
-        FFTOverSample[FFTOverSampleCount] = sqrt(PrivateData._uORB_Gryo__Roll * PrivateData._uORB_Gryo__Roll +
-                                                 PrivateData._uORB_Gryo_Pitch * PrivateData._uORB_Gryo_Pitch);
+        FFTOverSample[FFTOverSampleCount] = PrivateData._uORB_Gryo__Roll;
         FFTOverSampleCount++;
 
         if (FFTOverSampleCount >= (MPUUpdateFreq / 1000))
@@ -562,15 +557,9 @@ private:
                     }
                     GyroDynamicNotchCenterLast = biquadFilterApply(&GryoFilterDynamicFreq, CenterFreq);
                     PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ = GyroDynamicNotchCenterLast;
-                    int DT = (float)(1.f / (float)MPUUpdateFreq) * 1000000;
-                    int Cut = (GyroNotchMaxBox * 31.25);
-                    float Q = filterGetNotchQ(PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ, Cut);
-                    biquadFilterUpdate(&GryoFilterDynamicNotchX, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ, DT, Q, FILTER_NOTCH);
-                    biquadFilterUpdate(&GryoFilterDynamicNotchY, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ, DT, Q, FILTER_NOTCH);
-                    biquadFilterUpdate(&GryoFilterDynamicNotchZ, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ, DT, Q, FILTER_NOTCH);
                 }
-
                 FFTCountDown = 0;
+                GyroDynamicNotchReady = true;
             }
         }
     };
@@ -603,6 +592,7 @@ private:
     biquadFilter_t GryoFilterBLPFZ;
 
     int GyroDynamicNotchSample = 0;
+    bool GyroDynamicNotchReady = false;
     bool GyroDynamicNotchEnable = false;
     int FFTCountDown = 0;
     int FFTOverSampleCount = 0;
@@ -631,8 +621,8 @@ private:
     pt1Filter_t VibeLPFY;
     pt1Filter_t VibeLPFZ;
 
+    float GyroNotchDyQ;
     int GyroNotchMinBox;
-    int GyroNotchMaxBox;
     int GyroNotchCutOff;
     int GyroNotchCenterFreq;
     biquadFilter_t GyroNotchPitch;
