@@ -34,7 +34,8 @@
 #define FilterLPFBiquad 1
 
 #define GravityAccel 9.80665
-#define MPUGStandard 4096.f
+#define MPU_250HZ_LPF_SPEED 8000.f
+#define MPU_LOWHZ_LPF_SPEED 1000.f
 
 #define DYNAMIC_NOTCH_DEFAULT_CENTER_HZ 350.f
 #define DYN_NOTCH_SMOOTH_FREQ_HZ 30.f
@@ -108,92 +109,105 @@ public:
                       int NotchCenterFreq = 180, int NotchCutoffFreq = 0,
                       bool DynamicNotchEnable = false, int MinimemBox = 3, float DynamicNotchQ = 1.2)
     {
-        MPU9250_Type = Type;
-        MPUUpdateFreq = UpdateFreq;
-        MPU9250_I2CAddr = MPUI2CAddr;
-        MPU9250_SPI_Channel = MPUSPIChannel;
-        CompassEnable = IsBuildInCompassEnable;
+        //copy args
+        {
+            MPU9250_Type = Type;
+            MPUUpdateFreq = UpdateFreq;
+            MPU9250_I2CAddr = MPUI2CAddr;
+            MPU9250_SPI_Channel = MPUSPIChannel;
+            CompassEnable = IsBuildInCompassEnable;
 
-        GryoFilterType = GFilterType;
-        AccelFilterType = AccFilterType;
-        MPUMixTraditionAplah = MPUMixAplah;
+            GryoFilterType = GFilterType;
+            AccelFilterType = AccFilterType;
+            MPUMixTraditionAplah = MPUMixAplah;
 
-        GyroNotchMinBox = MinimemBox;
-        GyroNotchDyQ = DynamicNotchQ;
-        GyroNotchCutOff = NotchCutoffFreq;
-        GyroNotchCenterFreq = NotchCenterFreq;
-        GyroDynamicNotchEnable = DynamicNotchEnable;
+            GyroNotchMinBox = MinimemBox;
+            GyroNotchDyQ = DynamicNotchQ;
+            GyroNotchCutOff = NotchCutoffFreq;
+            GyroNotchCenterFreq = NotchCenterFreq;
+            GyroDynamicNotchEnable = DynamicNotchEnable;
+        }
 
         AHRSSys = new MadgwickAHRS(MPUMixAplah, UpdateFreq);
 
-        int DT = (float)(1.f / (float)UpdateFreq) * 1000000;
-        switch (GryoFilterType)
+        //Settings all Filter
         {
-        case FilterLPFPT1:
-            pt1FilterInit(&GryoFilterLPFX, GCutOff, DT * 1e-6f);
-            pt1FilterInit(&GryoFilterLPFY, GCutOff, DT * 1e-6f);
-            pt1FilterInit(&GryoFilterLPFZ, GCutOff, DT * 1e-6f);
-            break;
+            int DT = (float)(1.f / (float)UpdateFreq) * 1000000;
+            switch (GryoFilterType)
+            {
+            case FilterLPFPT1:
+                pt1FilterInit(&GryoFilterLPFX, GCutOff, DT * 1e-6f);
+                pt1FilterInit(&GryoFilterLPFY, GCutOff, DT * 1e-6f);
+                pt1FilterInit(&GryoFilterLPFZ, GCutOff, DT * 1e-6f);
+                break;
 
-        case FilterLPFBiquad:
-            biquadFilterInitLPF(&GryoFilterBLPFX, GCutOff, DT);
-            biquadFilterInitLPF(&GryoFilterBLPFY, GCutOff, DT);
-            biquadFilterInitLPF(&GryoFilterBLPFZ, GCutOff, DT);
-            break;
+            case FilterLPFBiquad:
+                biquadFilterInitLPF(&GryoFilterBLPFX, GCutOff, DT);
+                biquadFilterInitLPF(&GryoFilterBLPFY, GCutOff, DT);
+                biquadFilterInitLPF(&GryoFilterBLPFZ, GCutOff, DT);
+                break;
+            }
+            switch (AccelFilterType)
+            {
+            case FilterLPFPT1:
+                pt1FilterInit(&AccelFilterLPFX, AccCutOff, DT * 1e-6f);
+                pt1FilterInit(&AccelFilterLPFY, AccCutOff, DT * 1e-6f);
+                pt1FilterInit(&AccelFilterLPFZ, AccCutOff, DT * 1e-6f);
+                break;
+
+            case FilterLPFBiquad:
+                biquadFilterInitLPF(&AccelFilterBLPFX, AccCutOff, DT);
+                biquadFilterInitLPF(&AccelFilterBLPFY, AccCutOff, DT);
+                biquadFilterInitLPF(&AccelFilterBLPFZ, AccCutOff, DT);
+                break;
+            }
+
+            if (GyroNotchCutOff)
+            {
+                biquadFilterInitNotch(&GyroNotchPitch, DT, GyroNotchCenterFreq, GyroNotchCutOff);
+                biquadFilterInitNotch(&GyroNotch_Roll, DT, GyroNotchCenterFreq, GyroNotchCutOff);
+                biquadFilterInitNotch(&GyroNotch__Yaw, DT, GyroNotchCenterFreq, GyroNotchCutOff);
+            }
+            if (DynamicNotchEnable)
+            {
+                biquadFilterInitLPF(&GryoFilterDynamicFreq[0], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(MPUUpdateFreq / 1000) * 2.f)));
+                biquadFilterInitLPF(&GryoFilterDynamicFreq[1], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(MPUUpdateFreq / 1000) * 2.f)));
+                biquadFilterInitLPF(&GryoFilterDynamicFreq[2], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(MPUUpdateFreq / 1000) * 2.f)));
+                biquadFilterInit(&GryoFilterDynamicNotchX, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
+                biquadFilterInit(&GryoFilterDynamicNotchY, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
+                biquadFilterInit(&GryoFilterDynamicNotchZ, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
+            }
+
+            pt1FilterInit(&VibeFloorLPFX, ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
+            pt1FilterInit(&VibeFloorLPFY, ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
+            pt1FilterInit(&VibeFloorLPFZ, ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
+            pt1FilterInit(&VibeLPFX, ACC_VIBE_FILT_HZ, DT * 1e-6f);
+            pt1FilterInit(&VibeLPFY, ACC_VIBE_FILT_HZ, DT * 1e-6f);
+            pt1FilterInit(&VibeLPFZ, ACC_VIBE_FILT_HZ, DT * 1e-6f);
         }
-        switch (AccelFilterType)
-        {
-        case FilterLPFPT1:
-            pt1FilterInit(&AccelFilterLPFX, AccCutOff, DT * 1e-6f);
-            pt1FilterInit(&AccelFilterLPFY, AccCutOff, DT * 1e-6f);
-            pt1FilterInit(&AccelFilterLPFZ, AccCutOff, DT * 1e-6f);
-            break;
 
-        case FilterLPFBiquad:
-            biquadFilterInitLPF(&AccelFilterBLPFX, AccCutOff, DT);
-            biquadFilterInitLPF(&AccelFilterBLPFY, AccCutOff, DT);
-            biquadFilterInitLPF(&AccelFilterBLPFZ, AccCutOff, DT);
-            break;
-        }
-
-        if (GyroNotchCutOff)
-        {
-            biquadFilterInitNotch(&GyroNotchPitch, DT, GyroNotchCenterFreq, GyroNotchCutOff);
-            biquadFilterInitNotch(&GyroNotch_Roll, DT, GyroNotchCenterFreq, GyroNotchCutOff);
-            biquadFilterInitNotch(&GyroNotch__Yaw, DT, GyroNotchCenterFreq, GyroNotchCutOff);
-        }
-        if (DynamicNotchEnable)
-        {
-            biquadFilterInitLPF(&GryoFilterDynamicFreq[0], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(MPUUpdateFreq / 1000) * 2.f)));
-            biquadFilterInitLPF(&GryoFilterDynamicFreq[1], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(MPUUpdateFreq / 1000) * 2.f)));
-            biquadFilterInitLPF(&GryoFilterDynamicFreq[2], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(MPUUpdateFreq / 1000) * 2.f)));
-            biquadFilterInit(&GryoFilterDynamicNotchX, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
-            biquadFilterInit(&GryoFilterDynamicNotchY, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
-            biquadFilterInit(&GryoFilterDynamicNotchZ, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
-        }
-
-        pt1FilterInit(&VibeFloorLPFX, ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
-        pt1FilterInit(&VibeFloorLPFY, ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
-        pt1FilterInit(&VibeFloorLPFZ, ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
-        pt1FilterInit(&VibeLPFX, ACC_VIBE_FILT_HZ, DT * 1e-6f);
-        pt1FilterInit(&VibeLPFY, ACC_VIBE_FILT_HZ, DT * 1e-6f);
-        pt1FilterInit(&VibeLPFZ, ACC_VIBE_FILT_HZ, DT * 1e-6f);
-
+        double OutputSpeedCal = (MPU_250HZ_LPF_SPEED / (float)MPUUpdateFreq) - 1.f;
         if (Type == MPUTypeSPI)
         {
             MPU9250_fd = wiringPiSPISetup(MPU9250_SPI_Channel, MPU9250_SPI_Freq);
             MPU9250_SPI_Config[0] = 0x6b;
             MPU9250_SPI_Config[1] = 0x00;
             wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); //reset
+            MPU9250_SPI_Config[0] = 0x1d;
+            MPU9250_SPI_Config[1] = 0x03;                                  //FChoice 1, DLPF 3 , dlpf cut off 41hz
+            wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); // Accel2
             MPU9250_SPI_Config[0] = 0x1c;
-            MPU9250_SPI_Config[1] = 0x10;
+            MPU9250_SPI_Config[1] = 0x18;                                  //Full AccelScale +- 16g
             wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); // Accel
             MPU9250_SPI_Config[0] = 0x1b;
-            MPU9250_SPI_Config[1] = 0x08;
+            MPU9250_SPI_Config[1] = 0x18;                                  // Full GyroScale +-2000dps, dlpf 250hz
             wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); // Gryo
             MPU9250_SPI_Config[0] = 0x1a;
-            MPU9250_SPI_Config[1] = 0x03;
+            MPU9250_SPI_Config[1] = 0x00;                                  //DLPF_CFG is 000 , with Gyro dlpf is 250hz
             wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); //config
+            MPU9250_SPI_Config[0] = 0x19;
+            MPU9250_SPI_Config[1] = OutputSpeedCal;                        // 8khz / (1 + OutputSpeedCal) = 2khz;
+            wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); //DLPF's Sample rate's DIV
             if (CompassEnable)
             {
             }
@@ -201,10 +215,12 @@ public:
         else if (Type == MPUTypeI2C)
         {
             MPU9250_fd = wiringPiI2CSetup(MPU9250_I2CAddr);
-            wiringPiI2CWriteReg8(MPU9250_fd, 107, 0x00); //reset
-            wiringPiI2CWriteReg8(MPU9250_fd, 28, 0x10);  //Accel
-            wiringPiI2CWriteReg8(MPU9250_fd, 27, 0x08);  //Gryo
-            wiringPiI2CWriteReg8(MPU9250_fd, 26, 0x03);  //config
+            wiringPiI2CWriteReg8(MPU9250_fd, 107, 0x00);          //reset
+            wiringPiI2CWriteReg8(MPU9250_fd, 29, 0x03);           //Accel
+            wiringPiI2CWriteReg8(MPU9250_fd, 28, 0x18);           //Accel
+            wiringPiI2CWriteReg8(MPU9250_fd, 27, 0x18);           //Gryo
+            wiringPiI2CWriteReg8(MPU9250_fd, 26, 0x00);           //config
+            wiringPiI2CWriteReg8(MPU9250_fd, 25, OutputSpeedCal); //DLPF's Sample rate's DIV
             if (CompassEnable)
             {
             }
@@ -289,9 +305,9 @@ public:
             AccelCaliData[MPUAccelCaliX] = (AccelCaliData[MPUAccelNoseRight] + AccelCaliData[MPUAccelNoseLeft]) / 2.f;
             AccelCaliData[MPUAccelCaliY] = (AccelCaliData[MPUAccelNoseUp] + AccelCaliData[MPUAccelNoseDown]) / 2.f;
             AccelCaliData[MPUAccelCaliZ] = (AccelCaliData[MPUAccelNoseTop] + AccelCaliData[MPUAccelNoseRev]) / 2.f;
-            AccelCaliData[MPUAccelScalX] = MPUGStandard / (AccelCaliData[MPUAccelNoseLeft] - AccelCaliData[7]);
-            AccelCaliData[MPUAccelScalY] = MPUGStandard / (AccelCaliData[MPUAccelNoseUp] - AccelCaliData[8]);
-            AccelCaliData[MPUAccelScalZ] = MPUGStandard / (AccelCaliData[MPUAccelNoseTop] - AccelCaliData[9]);
+            AccelCaliData[MPUAccelScalX] = MPU9250_Accel_LSB / (AccelCaliData[MPUAccelNoseLeft] - AccelCaliData[7]);
+            AccelCaliData[MPUAccelScalY] = MPU9250_Accel_LSB / (AccelCaliData[MPUAccelNoseUp] - AccelCaliData[8]);
+            AccelCaliData[MPUAccelScalZ] = MPU9250_Accel_LSB / (AccelCaliData[MPUAccelNoseTop] - AccelCaliData[9]);
         }
     }
 
@@ -579,8 +595,8 @@ private:
 
     int MPU9250_fd;
     int MPUUpdateFreq = 1000;
-    float MPU9250_Gryo_LSB = 65.5;
-    float MPU9250_Accel_LSB = 4096.f;
+    float MPU9250_Gryo_LSB = 16.4;    // +-2000dps
+    float MPU9250_Accel_LSB = 2048.f; //+-16g
     bool CompassEnable = false;
     int MPU9250_I2CAddr = 0x68;
     int MPU9250_SPI_Channel = 1;
