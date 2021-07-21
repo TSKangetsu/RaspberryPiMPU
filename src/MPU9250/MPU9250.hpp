@@ -41,6 +41,9 @@
 #define DYN_NOTCH_SMOOTH_FREQ_HZ 30.f
 #define ACC_VIBE_FLOOR_FILT_HZ 5.f
 #define ACC_VIBE_FILT_HZ 2.f
+#define IMU_CALI_MAX_LOOP 500.0
+#define MAX_ACC_NEARNESS 0.33 // 33% or G error soft-accepted (0.67-1.33G)
+#define M_Ef 2.71828182845904523536f
 
 struct MPUData
 {
@@ -58,9 +61,9 @@ struct MPUData
     float _uORB_MPU9250_ADF_Y = 0;
     float _uORB_MPU9250_ADF_Z = 0;
 
-    int _uORB_MPU9250_A_Static_X = 0;
-    int _uORB_MPU9250_A_Static_Y = 0;
-    int _uORB_MPU9250_A_Static_Z = 0;
+    float _uORB_MPU9250_A_Static_X = 0;
+    float _uORB_MPU9250_A_Static_Y = 0;
+    float _uORB_MPU9250_A_Static_Z = 0;
     float _uORB_MPU9250_A_Vector = 0;
     float _uORB_MPU9250_A_Static_Vector = 0;
 
@@ -76,6 +79,7 @@ struct MPUData
     float _uORB_Acceleration_Y = 0;
     float _uORB_Acceleration_Z = 0;
     float _uORB_Raw_QuaternionQ[4] = {0};
+    float MPUMixTraditionBeta = 0.05;
 
     float _uORB_Accel_VIBE_X = 0;
     float _uORB_Accel_VIBE_Y = 0;
@@ -125,11 +129,11 @@ public:
             GyroNotchDyQ = DynamicNotchQ;
             GyroNotchCutOff = NotchCutoffFreq;
             GyroNotchCenterFreq = NotchCenterFreq;
-            GyroDynamicNotchEnable = DynamicNotchEnable;
+            if (MPUUpdateFreq >= 1000)
+                GyroDynamicNotchEnable = DynamicNotchEnable;
+            else
+                GyroDynamicNotchEnable = false;
         }
-
-        AHRSSys = new MadgwickAHRS(MPUMixAplah, UpdateFreq);
-
         //Settings all Filter
         {
             int DT = (float)(1.f / (float)UpdateFreq) * 1000000;
@@ -168,7 +172,7 @@ public:
                 biquadFilterInitNotch(&GyroNotch_Roll, DT, GyroNotchCenterFreq, GyroNotchCutOff);
                 biquadFilterInitNotch(&GyroNotch__Yaw, DT, GyroNotchCenterFreq, GyroNotchCutOff);
             }
-            if (DynamicNotchEnable)
+            if (GyroDynamicNotchEnable)
             {
                 biquadFilterInitLPF(&GryoFilterDynamicFreq[0], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(MPUUpdateFreq / 1000) * 2.f)));
                 biquadFilterInitLPF(&GryoFilterDynamicFreq[1], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(MPUUpdateFreq / 1000) * 2.f)));
@@ -177,7 +181,6 @@ public:
                 biquadFilterInit(&GryoFilterDynamicNotchY, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
                 biquadFilterInit(&GryoFilterDynamicNotchZ, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
             }
-
             pt1FilterInit(&VibeFloorLPFX, ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
             pt1FilterInit(&VibeFloorLPFY, ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
             pt1FilterInit(&VibeFloorLPFZ, ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
@@ -185,46 +188,49 @@ public:
             pt1FilterInit(&VibeLPFY, ACC_VIBE_FILT_HZ, DT * 1e-6f);
             pt1FilterInit(&VibeLPFZ, ACC_VIBE_FILT_HZ, DT * 1e-6f);
         }
-
-        double OutputSpeedCal = (MPU_250HZ_LPF_SPEED / (float)MPUUpdateFreq) - 1.f;
-        if (Type == MPUTypeSPI)
+        // MPUInit
         {
-            MPU9250_fd = wiringPiSPISetup(MPU9250_SPI_Channel, MPU9250_SPI_Freq);
-            MPU9250_SPI_Config[0] = 0x6b;
-            MPU9250_SPI_Config[1] = 0x00;
-            wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); //reset
-            MPU9250_SPI_Config[0] = 0x1d;
-            MPU9250_SPI_Config[1] = 0x03;                                  //FChoice 1, DLPF 3 , dlpf cut off 41hz
-            wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); // Accel2
-            MPU9250_SPI_Config[0] = 0x1c;
-            MPU9250_SPI_Config[1] = 0x18;                                  //Full AccelScale +- 16g
-            wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); // Accel
-            MPU9250_SPI_Config[0] = 0x1b;
-            MPU9250_SPI_Config[1] = 0x18;                                  // Full GyroScale +-2000dps, dlpf 250hz
-            wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); // Gryo
-            MPU9250_SPI_Config[0] = 0x1a;
-            MPU9250_SPI_Config[1] = 0x00;                                  //DLPF_CFG is 000 , with Gyro dlpf is 250hz
-            wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); //config
-            MPU9250_SPI_Config[0] = 0x19;
-            MPU9250_SPI_Config[1] = OutputSpeedCal;                        // 8khz / (1 + OutputSpeedCal) = 2khz;
-            wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); //DLPF's Sample rate's DIV
-            if (CompassEnable)
+            double OutputSpeedCal = (MPU_250HZ_LPF_SPEED / (float)MPUUpdateFreq) - 1.f;
+            if (Type == MPUTypeSPI)
             {
+                MPU9250_fd = wiringPiSPISetup(MPU9250_SPI_Channel, MPU9250_SPI_Freq);
+                MPU9250_SPI_Config[0] = 0x6b;
+                MPU9250_SPI_Config[1] = 0x00;
+                wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); //reset
+                MPU9250_SPI_Config[0] = 0x1d;
+                MPU9250_SPI_Config[1] = 0x03;                                  //FChoice 1, DLPF 3 , dlpf cut off 41hz
+                wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); // Accel2
+                MPU9250_SPI_Config[0] = 0x1c;
+                MPU9250_SPI_Config[1] = 0x18;                                  //Full AccelScale +- 16g
+                wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); // Accel
+                MPU9250_SPI_Config[0] = 0x1b;
+                MPU9250_SPI_Config[1] = 0x18;                                  // Full GyroScale +-2000dps, dlpf 250hz
+                wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); // Gryo
+                MPU9250_SPI_Config[0] = 0x1a;
+                MPU9250_SPI_Config[1] = 0x00;                                  //DLPF_CFG is 000 , with Gyro dlpf is 250hz
+                wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); //config
+                MPU9250_SPI_Config[0] = 0x19;
+                MPU9250_SPI_Config[1] = OutputSpeedCal;                        // 8khz / (1 + OutputSpeedCal) = 2khz;
+                wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); //DLPF's Sample rate's DIV
+                if (CompassEnable)
+                {
+                }
+            }
+            else if (Type == MPUTypeI2C)
+            {
+                MPU9250_fd = wiringPiI2CSetup(MPU9250_I2CAddr);
+                wiringPiI2CWriteReg8(MPU9250_fd, 107, 0x00);          //reset
+                wiringPiI2CWriteReg8(MPU9250_fd, 29, 0x03);           //Accel
+                wiringPiI2CWriteReg8(MPU9250_fd, 28, 0x18);           //Accel
+                wiringPiI2CWriteReg8(MPU9250_fd, 27, 0x18);           //Gryo
+                wiringPiI2CWriteReg8(MPU9250_fd, 26, 0x00);           //config
+                wiringPiI2CWriteReg8(MPU9250_fd, 25, OutputSpeedCal); //DLPF's Sample rate's DIV
+                if (CompassEnable)
+                {
+                }
             }
         }
-        else if (Type == MPUTypeI2C)
-        {
-            MPU9250_fd = wiringPiI2CSetup(MPU9250_I2CAddr);
-            wiringPiI2CWriteReg8(MPU9250_fd, 107, 0x00);          //reset
-            wiringPiI2CWriteReg8(MPU9250_fd, 29, 0x03);           //Accel
-            wiringPiI2CWriteReg8(MPU9250_fd, 28, 0x18);           //Accel
-            wiringPiI2CWriteReg8(MPU9250_fd, 27, 0x18);           //Gryo
-            wiringPiI2CWriteReg8(MPU9250_fd, 26, 0x00);           //config
-            wiringPiI2CWriteReg8(MPU9250_fd, 25, OutputSpeedCal); //DLPF's Sample rate's DIV
-            if (CompassEnable)
-            {
-            }
-        }
+        AHRSSys = new MadgwickAHRS(MPUMixTraditionAplah, MPUUpdateFreq);
     };
 
     // Gryo must be Calibration Before Get MPU Data, This Function Require a Correctly Accel Calibration
@@ -246,7 +252,7 @@ public:
         PrivateData._flag_MPU9250_G_Y_Cali = 0;
         PrivateData._flag_MPU9250_G_Z_Cali = 0;
 
-        for (int cali_count = 0; cali_count < 1000; cali_count++)
+        for (int cali_count = 0; cali_count < IMU_CALI_MAX_LOOP; cali_count++)
         {
             MPUSensorsDataGet();
             ResetMPUMixAngle();
@@ -256,10 +262,10 @@ public:
             _Tmp_Accel_Static_Cali += PrivateData._uORB_MPU9250_A_Vector;
             usleep((int)(1.f / (float)MPUUpdateFreq * 1000000.f));
         }
-        PrivateData._flag_MPU9250_G_X_Cali = _Tmp_Gryo_X_Cali / 1000.0;
-        PrivateData._flag_MPU9250_G_Y_Cali = _Tmp_Gryo_Y_Cali / 1000.0;
-        PrivateData._flag_MPU9250_G_Z_Cali = _Tmp_Gryo_Z_Cali / 1000.0;
-        PrivateData._uORB_MPU9250_A_Static_Vector = _Tmp_Accel_Static_Cali / 1000.0;
+        PrivateData._flag_MPU9250_G_X_Cali = _Tmp_Gryo_X_Cali / IMU_CALI_MAX_LOOP;
+        PrivateData._flag_MPU9250_G_Y_Cali = _Tmp_Gryo_Y_Cali / IMU_CALI_MAX_LOOP;
+        PrivateData._flag_MPU9250_G_Z_Cali = _Tmp_Gryo_Z_Cali / IMU_CALI_MAX_LOOP;
+        PrivateData._uORB_MPU9250_A_Static_Vector = _Tmp_Accel_Static_Cali / IMU_CALI_MAX_LOOP;
         return 0;
     };
 
@@ -328,7 +334,7 @@ public:
         PrivateData._uORB_Accel_VIBE_X = pt1FilterApply(&VibeLPFX, (pow((((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB) - AccVibeFloorX), 2)));
         PrivateData._uORB_Accel_VIBE_Y = pt1FilterApply(&VibeLPFY, (pow((((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB) - AccVibeFloorY), 2)));
         PrivateData._uORB_Accel_VIBE_Z = pt1FilterApply(&VibeLPFZ, (pow((((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB) - AccVibeFloorZ), 2)));
-        //
+        //========================= //=========================
         switch (GryoFilterType)
         {
         case FilterLPFPT1:
@@ -374,21 +380,28 @@ public:
         switch (AccelFilterType)
         {
         case FilterLPFPT1:
-            PrivateData._uORB_MPU9250_ADF_X = pt1FilterApply(&AccelFilterLPFX, (float)PrivateData._uORB_MPU9250_A_X);
-            PrivateData._uORB_MPU9250_ADF_Y = pt1FilterApply(&AccelFilterLPFY, (float)PrivateData._uORB_MPU9250_A_Y);
-            PrivateData._uORB_MPU9250_ADF_Z = pt1FilterApply(&AccelFilterLPFZ, (float)PrivateData._uORB_MPU9250_A_Z);
+            PrivateData._uORB_MPU9250_ADF_X = pt1FilterApply(&AccelFilterLPFX, ((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
+            PrivateData._uORB_MPU9250_ADF_Y = pt1FilterApply(&AccelFilterLPFY, ((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
+            PrivateData._uORB_MPU9250_ADF_Z = pt1FilterApply(&AccelFilterLPFZ, ((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
             break;
         case FilterLPFBiquad:
-            PrivateData._uORB_MPU9250_ADF_X = biquadFilterApply(&AccelFilterBLPFX, (float)PrivateData._uORB_MPU9250_A_X);
-            PrivateData._uORB_MPU9250_ADF_Y = biquadFilterApply(&AccelFilterBLPFY, (float)PrivateData._uORB_MPU9250_A_Y);
-            PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelFilterBLPFZ, (float)PrivateData._uORB_MPU9250_A_Z);
+            PrivateData._uORB_MPU9250_ADF_X = biquadFilterApply(&AccelFilterBLPFX, ((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
+            PrivateData._uORB_MPU9250_ADF_Y = biquadFilterApply(&AccelFilterBLPFY, ((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
+            PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelFilterBLPFZ, ((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
             break;
         }
         //========================= //=========================
+        //TODO: caculate accelweight
+        if ((PrivateData._uORB_MPU9250_A_Vector > (PrivateData._uORB_MPU9250_A_Static_Vector - MAX_ACC_NEARNESS)) &&
+            (PrivateData._uORB_MPU9250_A_Vector < (PrivateData._uORB_MPU9250_A_Static_Vector + MAX_ACC_NEARNESS)))
+            PrivateData.MPUMixTraditionBeta = MPUMixTraditionAplah;
+        else
+            PrivateData.MPUMixTraditionBeta = 0.f;
+        AHRSSys->MadgwickSetAccelWeight(PrivateData.MPUMixTraditionBeta);
         AHRSSys->MadgwickAHRSupdateIMU(PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo___Yaw,
-                                       (-1.f * PrivateData._uORB_MPU9250_ADF_X / MPU9250_Accel_LSB),
-                                       (PrivateData._uORB_MPU9250_ADF_Y / MPU9250_Accel_LSB),
-                                       (PrivateData._uORB_MPU9250_ADF_Z / MPU9250_Accel_LSB));
+                                       (-1.f * PrivateData._uORB_MPU9250_ADF_X),
+                                       (PrivateData._uORB_MPU9250_ADF_Y),
+                                       (PrivateData._uORB_MPU9250_ADF_Z));
         AHRSSys->MadgwickAHRSGetQ(PrivateData._uORB_Raw_QuaternionQ[0],
                                   PrivateData._uORB_Raw_QuaternionQ[1],
                                   PrivateData._uORB_Raw_QuaternionQ[2],
@@ -398,9 +411,9 @@ public:
         PrivateData._uORB_Real_Pitch *= 180.f / PI;
         PrivateData._uORB_Real___Yaw *= 180.f / PI;
         //========================= //=========================
-        PrivateData._uORB_MPU9250_A_Vector = sqrt((PrivateData._uORB_MPU9250_A_X * PrivateData._uORB_MPU9250_A_X) +
-                                                  (PrivateData._uORB_MPU9250_A_Y * PrivateData._uORB_MPU9250_A_Y) +
-                                                  (PrivateData._uORB_MPU9250_A_Z * PrivateData._uORB_MPU9250_A_Z));
+        PrivateData._uORB_MPU9250_A_Vector = sqrtf((PrivateData._uORB_MPU9250_ADF_X * PrivateData._uORB_MPU9250_ADF_X) +
+                                                   (PrivateData._uORB_MPU9250_ADF_Y * PrivateData._uORB_MPU9250_ADF_Y) +
+                                                   (PrivateData._uORB_MPU9250_ADF_Z * PrivateData._uORB_MPU9250_ADF_Z));
         PrivateData._uORB_Accel_Pitch = atan2((float)PrivateData._uORB_MPU9250_ADF_Y, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
         PrivateData._uORB_Accel__Roll = atan2((float)PrivateData._uORB_MPU9250_ADF_X, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
         //========================= //=========================
@@ -418,9 +431,9 @@ public:
         PrivateData._uORB_MPU9250_A_Static_Z = AccelStatic[0] - PrivateData._uORB_MPU9250_A_Static_Vector;
         PrivateData._uORB_MPU9250_A_Static_X = -1.f * AccelStatic[1];
         PrivateData._uORB_MPU9250_A_Static_Y = -1.f * AccelStatic[2];
-        PrivateData._uORB_Acceleration_X = ((float)PrivateData._uORB_MPU9250_A_Static_X / MPU9250_Accel_LSB) * GravityAccel * 100.f;
-        PrivateData._uORB_Acceleration_Y = ((float)PrivateData._uORB_MPU9250_A_Static_Y / MPU9250_Accel_LSB) * GravityAccel * 100.f;
-        PrivateData._uORB_Acceleration_Z = ((float)PrivateData._uORB_MPU9250_A_Static_Z / MPU9250_Accel_LSB) * GravityAccel * 100.f;
+        PrivateData._uORB_Acceleration_X = ((float)PrivateData._uORB_MPU9250_A_Static_X) * GravityAccel * 100.f;
+        PrivateData._uORB_Acceleration_Y = ((float)PrivateData._uORB_MPU9250_A_Static_Y) * GravityAccel * 100.f;
+        PrivateData._uORB_Acceleration_Z = ((float)PrivateData._uORB_MPU9250_A_Static_Z) * GravityAccel * 100.f;
 
         return PrivateData;
     }
