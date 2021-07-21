@@ -1,4 +1,4 @@
-#include <nlohmann/json.hpp>
+#include "Drive_Json.hpp"
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -21,16 +21,19 @@ int main(int argc, char *argv[])
     //
     MPUData myData;
     //
-    while ((argvs = getopt(argc, argv, "c:t:h")) != -1)
+    while ((argvs = getopt(argc, argv, "cth")) != -1)
     {
         switch (argvs)
         {
-
         case 'c':
         {
             std::cout << "Start MPU Calibration\n";
-            TimeMax = std::atoi(optarg);
-            RPiMPU9250 *myMPUTest = new RPiMPU9250(1, false, 1, 0x68, TimeMax, 0);
+            TimeMax = 500;
+            RPiMPU9250 *myMPUTest = new RPiMPU9250(MPUTypeSPI, false, 1, 0x68, 2000, 0.2,
+                                                   FilterLPFPT1, 100,   //GyroFilter
+                                                   FilterLPFBiquad, 15, //AccelFilter
+                                                   0, 0,                // GyroNotchFilter
+                                                   false, 0, 0);        // GyroDynamicFilter
             int a;
             double tmp[50];
             std::cout << "start calibration Nose Up and Type int and enter:"
@@ -74,11 +77,15 @@ int main(int argc, char *argv[])
         case 't':
         {
             double AccelCaliData[30];
-            TimeMax = std::atoi(optarg);
+            TimeMax = 500;
             std::cout << "Start MPU Monitor\n";
             std::cout << "Setting UP MPU9250 ....";
             std::cout.flush();
-            RPiMPU9250 *myMPUTest = new RPiMPU9250(1, false, 1, 0x68, TimeMax, 0);
+            RPiMPU9250 *myMPUTest = new RPiMPU9250(MPUTypeSPI, false, 1, 0x68, 2000, 0.2,
+                                                   FilterLPFPT1, 100,   //GyroFilter
+                                                   FilterLPFBiquad, 15, //AccelFilter
+                                                   0, 0,                // GyroNotchFilter
+                                                   false, 0, 0);        // GyroDynamicFilter
             std::cout << " Done!\n";
             //
             AccelCaliData[MPUAccelCaliX] = configSettle("../MPUCali.json", "_flag_MPU9250_A_X_Cali");
@@ -92,10 +99,6 @@ int main(int argc, char *argv[])
             myMPUTest->MPUCalibration(AccelCaliData);
             std::cout << " Done!\n";
             sleep(1);
-            //
-            myMPUTest->MPUSensorsDataGet();
-            myMPUTest->ResetMPUMixAngle();
-            //
             system("clear");
             while (true)
             {
@@ -125,14 +128,12 @@ int main(int argc, char *argv[])
         break;
 
         case 'h':
-            std::cout << "Usage: 'RaspberryPiMPU [option] 1000' , 1000 is Loop Frequency time ,\n If on Raspberrpi4b and using SPI connection, it shuld be 1000";
-            std::cout << " OR Set to 250\n";
+            std::cout << "Usage: 'RaspberryPiMPU [option]'";
             std::cout << "[option] -c to calibration accel and save to MPUCali.json , -t is start to check mpu data on console\n";
             break;
 
         default:
-            std::cout << "Usage: 'RaspberryPiMPU [option] 1000' , 1000 is Loop Frequency time ,\n If on Raspberrpi4b and using SPI connection, it shuld be 1000";
-            std::cout << " OR Set to 250\n";
+            std::cout << "Usage: 'RaspberryPiMPU [option]'";
             std::cout << "[option] -c to calibration accel and save to MPUCali.json , -t is start to check mpu data on console\n";
             break;
         }

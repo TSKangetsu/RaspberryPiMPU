@@ -215,6 +215,10 @@ public:
 		beta = 1.0;
 	}
 
+	void MadgwickSetAccelWeight(float _beta)
+	{
+		beta = _beta;
+	}
 private:
 	float beta = 0;
 	float betaConfig = 0;
