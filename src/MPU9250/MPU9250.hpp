@@ -45,6 +45,31 @@
 #define MAX_ACC_NEARNESS 0.33 // 33% or G error soft-accepted (0.67-1.33G)
 #define M_Ef 2.71828182845904523536f
 
+struct MPUConfig
+{
+    int MPUType = MPUTypeSPI;
+    int MPUSPIChannel = 1;
+    uint8_t MPUI2CAddress = 0x68;
+    //
+    int TargetFreqency = 1000;
+    float GyroToAccelBeta = 0.02;
+    bool GyroDynamicAnalyse = false;
+    //
+    int GyroHardwareFilterFreq = 250;
+    //
+    int GyroFilterType = FilterLPFPT1;
+    int GyroFilterCutOff = 90;
+    int GyroFilterNotchCenterFreq = 150;
+    int GyroFilterNotchCutOff = 0;
+    //
+    float DynamicNotchQ = 1.2;
+    bool DynamicNotchEnable = true;
+    int DynamicNotchMinFreq = 60;
+    //
+    int AccelFilterType = FilterLPFBiquad;
+    int AccelFilterCutOff = 30;
+};
+
 struct MPUData
 {
     int _uORB_MPU9250_A_X = 0;
@@ -105,78 +130,55 @@ struct MPUData
 class RPiMPU9250
 {
 public:
-    inline RPiMPU9250(int Type = MPUTypeSPI, bool IsBuildInCompassEnable = false,
-                      int MPUSPIChannel = 1, unsigned char MPUI2CAddr = 0x68, int UpdateFreq = 1000,
-                      float MPUMixAplah = 0.02,
-                      int GFilterType = FilterLPFBiquad, int GCutOff = 256,
-                      int AccFilterType = FilterLPFBiquad, int AccCutOff = 15,
-                      int NotchCenterFreq = 180, int NotchCutoffFreq = 0,
-                      bool DynamicNotchEnable = false, int MinimemBox = 3, float DynamicNotchQ = 1.2)
+    inline RPiMPU9250(MPUConfig mpuConfig)
     {
         //copy args
         {
-            MPU9250_Type = Type;
-            MPUUpdateFreq = UpdateFreq;
-            MPU9250_I2CAddr = MPUI2CAddr;
-            MPU9250_SPI_Channel = MPUSPIChannel;
-            CompassEnable = IsBuildInCompassEnable;
-
-            GryoFilterType = GFilterType;
-            AccelFilterType = AccFilterType;
-            MPUMixTraditionAplah = MPUMixAplah;
-
-            GyroNotchMinBox = MinimemBox;
-            GyroNotchDyQ = DynamicNotchQ;
-            GyroNotchCutOff = NotchCutoffFreq;
-            GyroNotchCenterFreq = NotchCenterFreq;
-            if (MPUUpdateFreq >= 1000)
-                GyroDynamicNotchEnable = DynamicNotchEnable;
-            else
-                GyroDynamicNotchEnable = false;
+            PrivateConfig = mpuConfig;
         }
         //Settings all Filter
         {
-            int DT = (float)(1.f / (float)UpdateFreq) * 1000000;
-            switch (GryoFilterType)
+            int DT = (float)(1.f / (float)PrivateConfig.TargetFreqency) * 1000000;
+            switch (PrivateConfig.GyroFilterType)
             {
             case FilterLPFPT1:
-                pt1FilterInit(&GryoFilterLPFX, GCutOff, DT * 1e-6f);
-                pt1FilterInit(&GryoFilterLPFY, GCutOff, DT * 1e-6f);
-                pt1FilterInit(&GryoFilterLPFZ, GCutOff, DT * 1e-6f);
+                pt1FilterInit(&GryoFilterLPFX, PrivateConfig.GyroFilterCutOff, DT * 1e-6f);
+                pt1FilterInit(&GryoFilterLPFY, PrivateConfig.GyroFilterCutOff, DT * 1e-6f);
+                pt1FilterInit(&GryoFilterLPFZ, PrivateConfig.GyroFilterCutOff, DT * 1e-6f);
                 break;
 
             case FilterLPFBiquad:
-                biquadFilterInitLPF(&GryoFilterBLPFX, GCutOff, DT);
-                biquadFilterInitLPF(&GryoFilterBLPFY, GCutOff, DT);
-                biquadFilterInitLPF(&GryoFilterBLPFZ, GCutOff, DT);
+                biquadFilterInitLPF(&GryoFilterBLPFX, PrivateConfig.GyroFilterCutOff, DT);
+                biquadFilterInitLPF(&GryoFilterBLPFY, PrivateConfig.GyroFilterCutOff, DT);
+                biquadFilterInitLPF(&GryoFilterBLPFZ, PrivateConfig.GyroFilterCutOff, DT);
                 break;
             }
-            switch (AccelFilterType)
+            switch (PrivateConfig.AccelFilterType)
             {
             case FilterLPFPT1:
-                pt1FilterInit(&AccelFilterLPFX, AccCutOff, DT * 1e-6f);
-                pt1FilterInit(&AccelFilterLPFY, AccCutOff, DT * 1e-6f);
-                pt1FilterInit(&AccelFilterLPFZ, AccCutOff, DT * 1e-6f);
+                pt1FilterInit(&AccelFilterLPFX, PrivateConfig.AccelFilterCutOff, DT * 1e-6f);
+                pt1FilterInit(&AccelFilterLPFY, PrivateConfig.AccelFilterCutOff, DT * 1e-6f);
+                pt1FilterInit(&AccelFilterLPFZ, PrivateConfig.AccelFilterCutOff, DT * 1e-6f);
                 break;
 
             case FilterLPFBiquad:
-                biquadFilterInitLPF(&AccelFilterBLPFX, AccCutOff, DT);
-                biquadFilterInitLPF(&AccelFilterBLPFY, AccCutOff, DT);
-                biquadFilterInitLPF(&AccelFilterBLPFZ, AccCutOff, DT);
+                biquadFilterInitLPF(&AccelFilterBLPFX, PrivateConfig.AccelFilterCutOff, DT);
+                biquadFilterInitLPF(&AccelFilterBLPFY, PrivateConfig.AccelFilterCutOff, DT);
+                biquadFilterInitLPF(&AccelFilterBLPFZ, PrivateConfig.AccelFilterCutOff, DT);
                 break;
             }
 
-            if (GyroNotchCutOff)
+            if (PrivateConfig.GyroFilterNotchCutOff)
             {
-                biquadFilterInitNotch(&GyroNotchPitch, DT, GyroNotchCenterFreq, GyroNotchCutOff);
-                biquadFilterInitNotch(&GyroNotch_Roll, DT, GyroNotchCenterFreq, GyroNotchCutOff);
-                biquadFilterInitNotch(&GyroNotch__Yaw, DT, GyroNotchCenterFreq, GyroNotchCutOff);
+                biquadFilterInitNotch(&GyroNotchPitch, DT, PrivateConfig.GyroFilterNotchCenterFreq, PrivateConfig.GyroFilterNotchCutOff);
+                biquadFilterInitNotch(&GyroNotch_Roll, DT, PrivateConfig.GyroFilterNotchCenterFreq, PrivateConfig.GyroFilterNotchCutOff);
+                biquadFilterInitNotch(&GyroNotch__Yaw, DT, PrivateConfig.GyroFilterNotchCenterFreq, PrivateConfig.GyroFilterNotchCutOff);
             }
-            if (GyroDynamicNotchEnable)
+            if (PrivateConfig.DynamicNotchEnable)
             {
-                biquadFilterInitLPF(&GryoFilterDynamicFreq[0], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(MPUUpdateFreq / 1000) * 2.f)));
-                biquadFilterInitLPF(&GryoFilterDynamicFreq[1], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(MPUUpdateFreq / 1000) * 2.f)));
-                biquadFilterInitLPF(&GryoFilterDynamicFreq[2], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(MPUUpdateFreq / 1000) * 2.f)));
+                biquadFilterInitLPF(&GryoFilterDynamicFreq[0], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(PrivateConfig.TargetFreqency / 1000) * 2.f)));
+                biquadFilterInitLPF(&GryoFilterDynamicFreq[1], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(PrivateConfig.TargetFreqency / 1000) * 2.f)));
+                biquadFilterInitLPF(&GryoFilterDynamicFreq[2], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(PrivateConfig.TargetFreqency / 1000) * 2.f)));
                 biquadFilterInit(&GryoFilterDynamicNotchX, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
                 biquadFilterInit(&GryoFilterDynamicNotchY, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
                 biquadFilterInit(&GryoFilterDynamicNotchZ, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
@@ -189,48 +191,8 @@ public:
             pt1FilterInit(&VibeLPFZ, ACC_VIBE_FILT_HZ, DT * 1e-6f);
         }
         // MPUInit
-        {
-            double OutputSpeedCal = (MPU_250HZ_LPF_SPEED / (float)MPUUpdateFreq) - 1.f;
-            if (Type == MPUTypeSPI)
-            {
-                MPU9250_fd = wiringPiSPISetup(MPU9250_SPI_Channel, MPU9250_SPI_Freq);
-                MPU9250_SPI_Config[0] = 0x6b;
-                MPU9250_SPI_Config[1] = 0x00;
-                wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); //reset
-                MPU9250_SPI_Config[0] = 0x1d;
-                MPU9250_SPI_Config[1] = 0x03;                                  //FChoice 1, DLPF 3 , dlpf cut off 41hz
-                wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); // Accel2
-                MPU9250_SPI_Config[0] = 0x1c;
-                MPU9250_SPI_Config[1] = 0x18;                                  //Full AccelScale +- 16g
-                wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); // Accel
-                MPU9250_SPI_Config[0] = 0x1b;
-                MPU9250_SPI_Config[1] = 0x18;                                  // Full GyroScale +-2000dps, dlpf 250hz
-                wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); // Gryo
-                MPU9250_SPI_Config[0] = 0x1a;
-                MPU9250_SPI_Config[1] = 0x00;                                  //DLPF_CFG is 000 , with Gyro dlpf is 250hz
-                wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); //config
-                MPU9250_SPI_Config[0] = 0x19;
-                MPU9250_SPI_Config[1] = OutputSpeedCal;                        // 8khz / (1 + OutputSpeedCal) = 2khz;
-                wiringPiSPIDataRW(MPU9250_SPI_Channel, MPU9250_SPI_Config, 2); //DLPF's Sample rate's DIV
-                if (CompassEnable)
-                {
-                }
-            }
-            else if (Type == MPUTypeI2C)
-            {
-                MPU9250_fd = wiringPiI2CSetup(MPU9250_I2CAddr);
-                wiringPiI2CWriteReg8(MPU9250_fd, 107, 0x00);          //reset
-                wiringPiI2CWriteReg8(MPU9250_fd, 29, 0x03);           //Accel
-                wiringPiI2CWriteReg8(MPU9250_fd, 28, 0x18);           //Accel
-                wiringPiI2CWriteReg8(MPU9250_fd, 27, 0x18);           //Gryo
-                wiringPiI2CWriteReg8(MPU9250_fd, 26, 0x00);           //config
-                wiringPiI2CWriteReg8(MPU9250_fd, 25, OutputSpeedCal); //DLPF's Sample rate's DIV
-                if (CompassEnable)
-                {
-                }
-            }
-        }
-        AHRSSys = new MadgwickAHRS(MPUMixTraditionAplah, MPUUpdateFreq);
+        IMUSensorsDeviceInit();
+        AHRSSys = new MadgwickAHRS(PrivateConfig.GyroToAccelBeta, PrivateConfig.TargetFreqency);
     };
 
     // Gryo must be Calibration Before Get MPU Data, This Function Require a Correctly Accel Calibration
@@ -260,7 +222,7 @@ public:
             _Tmp_Gryo_Y_Cali += PrivateData._uORB_MPU9250_G_Y;
             _Tmp_Gryo_Z_Cali += PrivateData._uORB_MPU9250_G_Z;
             _Tmp_Accel_Static_Cali += PrivateData._uORB_MPU9250_A_Vector;
-            usleep((int)(1.f / (float)MPUUpdateFreq * 1000000.f));
+            usleep((int)(1.f / (float)PrivateConfig.TargetFreqency * 1000000.f));
         }
         PrivateData._flag_MPU9250_G_X_Cali = _Tmp_Gryo_X_Cali / IMU_CALI_MAX_LOOP;
         PrivateData._flag_MPU9250_G_Y_Cali = _Tmp_Gryo_Y_Cali / IMU_CALI_MAX_LOOP;
@@ -298,7 +260,7 @@ public:
                 AccelCaliData[AccelCaliAction] += PrivateData._uORB_MPU9250_A_Z;
                 break;
             }
-            usleep((int)(1.f / (float)MPUUpdateFreq * 1000000.f));
+            usleep((int)(1.f / (float)PrivateConfig.TargetFreqency * 1000000.f));
         }
         if (AccelCaliAction == MPUAccelCaliGet)
         {
@@ -335,7 +297,7 @@ public:
         PrivateData._uORB_Accel_VIBE_Y = pt1FilterApply(&VibeLPFY, (pow((((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB) - AccVibeFloorY), 2)));
         PrivateData._uORB_Accel_VIBE_Z = pt1FilterApply(&VibeLPFZ, (pow((((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB) - AccVibeFloorZ), 2)));
         //========================= //=========================
-        switch (GryoFilterType)
+        switch (PrivateConfig.GyroFilterType)
         {
         case FilterLPFPT1:
             PrivateData._uORB_Gryo_Pitch = pt1FilterApply(&GryoFilterLPFX, ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB));
@@ -349,35 +311,37 @@ public:
             break;
         }
         //
-        if (GyroNotchCutOff)
+        if (PrivateConfig.GyroFilterNotchCutOff)
         {
             PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GyroNotchPitch, PrivateData._uORB_Gryo_Pitch);
             PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GyroNotch_Roll, PrivateData._uORB_Gryo__Roll);
             PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GyroNotch__Yaw, PrivateData._uORB_Gryo___Yaw);
         }
-        if (GyroDynamicNotchEnable)
+        if (PrivateConfig.DynamicNotchEnable)
         {
             if (GyroDynamicNotchReady)
             {
-                int DT = (float)(1.f / (float)MPUUpdateFreq) * 1000000.f;
-                biquadFilterUpdate(&GryoFilterDynamicNotchX, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[0], DT, GyroNotchDyQ, FILTER_NOTCH);
-                biquadFilterUpdate(&GryoFilterDynamicNotchY, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[1], DT, GyroNotchDyQ, FILTER_NOTCH);
-                biquadFilterUpdate(&GryoFilterDynamicNotchZ, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[2], DT, GyroNotchDyQ, FILTER_NOTCH);
+                int DT = (float)(1.f / (float)PrivateConfig.TargetFreqency) * 1000000.f;
+                biquadFilterUpdate(&GryoFilterDynamicNotchX, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[0], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
+                biquadFilterUpdate(&GryoFilterDynamicNotchY, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[1], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
+                biquadFilterUpdate(&GryoFilterDynamicNotchZ, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[2], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
                 GyroDynamicNotchReady = false;
             }
             PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterDynamicNotchY, PrivateData._uORB_Gryo__Roll);
             PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterDynamicNotchX, PrivateData._uORB_Gryo_Pitch);
             PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterDynamicNotchZ, PrivateData._uORB_Gryo___Yaw);
         }
-        if (GyroDynamicNotchEnable && GyroDynamicNotchSample == (MPUUpdateFreq / 1000))
+        if (PrivateConfig.GyroDynamicAnalyse &&
+            GyroDynamicNotchSampleCount == (PrivateConfig.TargetFreqency / 1000) &&
+            PrivateConfig.TargetFreqency >= 1000)
         {
             IMUDynamicNotchUpdate();
-            GyroDynamicNotchSample = 0;
+            GyroDynamicNotchSampleCount = 0;
         }
         else
-            GyroDynamicNotchSample++;
+            GyroDynamicNotchSampleCount++;
         //
-        switch (AccelFilterType)
+        switch (PrivateConfig.AccelFilterType)
         {
         case FilterLPFPT1:
             PrivateData._uORB_MPU9250_ADF_X = pt1FilterApply(&AccelFilterLPFX, ((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
@@ -394,7 +358,7 @@ public:
         //TODO: caculate accelweight
         if ((PrivateData._uORB_MPU9250_A_Vector > (PrivateData._uORB_MPU9250_A_Static_Vector - MAX_ACC_NEARNESS)) &&
             (PrivateData._uORB_MPU9250_A_Vector < (PrivateData._uORB_MPU9250_A_Static_Vector + MAX_ACC_NEARNESS)))
-            PrivateData.MPUMixTraditionBeta = MPUMixTraditionAplah;
+            PrivateData.MPUMixTraditionBeta = PrivateConfig.GyroToAccelBeta;
         else
             PrivateData.MPUMixTraditionBeta = 0.f;
         AHRSSys->MadgwickSetAccelWeight(PrivateData.MPUMixTraditionBeta);
@@ -445,9 +409,46 @@ public:
     }
 
 private:
+    inline void IMUSensorsDeviceInit()
+    {
+        double OutputSpeedCal = (MPU_250HZ_LPF_SPEED / (float)PrivateConfig.TargetFreqency) - 1.f;
+        if (PrivateConfig.MPUType == MPUTypeSPI)
+        {
+            MPU9250_fd = wiringPiSPISetup(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Freq);
+            MPU9250_SPI_Config[0] = 0x6b;
+            MPU9250_SPI_Config[1] = 0x00;
+            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); //reset
+            MPU9250_SPI_Config[0] = 0x1d;
+            MPU9250_SPI_Config[1] = 0x03;                                          //FChoice 1, DLPF 3 , dlpf cut off 41hz
+            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); // Accel2
+            MPU9250_SPI_Config[0] = 0x1c;
+            MPU9250_SPI_Config[1] = 0x18;                                          //Full AccelScale +- 16g
+            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); // Accel
+            MPU9250_SPI_Config[0] = 0x1b;
+            MPU9250_SPI_Config[1] = 0x18;                                          // Full GyroScale +-2000dps, dlpf 250hz
+            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); // Gryo
+            MPU9250_SPI_Config[0] = 0x1a;
+            MPU9250_SPI_Config[1] = 0x00;                                          //DLPF_CFG is 000 , with Gyro dlpf is 250hz
+            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); //config
+            MPU9250_SPI_Config[0] = 0x19;
+            MPU9250_SPI_Config[1] = OutputSpeedCal;                                // 1khz / (1 + OutputSpeedCal) = 500hz; OutputSpeedCal is 2;
+            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); //DLPF's Sample rate's DIV , when > 250 hz lpf, not work
+        }
+        else if (PrivateConfig.MPUType == MPUTypeI2C)
+        {
+            MPU9250_fd = wiringPiI2CSetup(PrivateConfig.MPUI2CAddress);
+            wiringPiI2CWriteReg8(MPU9250_fd, 107, 0x00);          //reset
+            wiringPiI2CWriteReg8(MPU9250_fd, 29, 0x03);           //Accel
+            wiringPiI2CWriteReg8(MPU9250_fd, 28, 0x18);           //Accel
+            wiringPiI2CWriteReg8(MPU9250_fd, 27, 0x18);           //Gryo
+            wiringPiI2CWriteReg8(MPU9250_fd, 26, 0x00);           //config
+            wiringPiI2CWriteReg8(MPU9250_fd, 25, OutputSpeedCal); //DLPF's Sample rate's DIV
+        }
+    };
+
     inline void IMUSensorsDataRead()
     {
-        if (MPU9250_Type == MPUTypeI2C)
+        if (PrivateConfig.MPUType == MPUTypeI2C)
         {
             Tmp_MPU9250_Buffer[0] = wiringPiI2CReadReg8(MPU9250_fd, 0x3B);
             Tmp_MPU9250_Buffer[1] = wiringPiI2CReadReg8(MPU9250_fd, 0x3C);
@@ -469,12 +470,11 @@ private:
             Tmp_MPU9250_Buffer[11] = wiringPiI2CReadReg8(MPU9250_fd, 0x48);
             PrivateData._uORB_MPU9250_G_Z = (short)(Tmp_MPU9250_Buffer[10] << 8 | Tmp_MPU9250_Buffer[11]);
         }
-        else if (MPU9250_Type == MPUTypeSPI)
+        else if (PrivateConfig.MPUType == MPUTypeSPI)
         {
             Tmp_MPU9250_SPI_Buffer[0] = 0xBB;
-            wiringPiSPIDataRW(MPU9250_SPI_Channel, Tmp_MPU9250_SPI_Buffer, 21);
+            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, Tmp_MPU9250_SPI_Buffer, 21);
             PrivateData._uORB_MPU9250_A_X = (short)((int)Tmp_MPU9250_SPI_Buffer[1] << 8 | (int)Tmp_MPU9250_SPI_Buffer[2]) * -1;
-            ;
             PrivateData._uORB_MPU9250_A_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[3] << 8 | (int)Tmp_MPU9250_SPI_Buffer[4]);
             PrivateData._uORB_MPU9250_A_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[5] << 8 | (int)Tmp_MPU9250_SPI_Buffer[6]);
 
@@ -489,141 +489,48 @@ private:
     }
 
     //Collect GryoData 1000HZ and DownSample to 500hz by 1/2
-    inline void IMUDynamicNotchUpdate()
+    inline void IMUSensorFFTAnalyse()
     {
-        FFTOverSample[0][FFTOverSampleCount] = PrivateData._uORB_Gryo__Roll;
-        FFTOverSample[1][FFTOverSampleCount] = PrivateData._uORB_Gryo_Pitch;
-        FFTOverSample[2][FFTOverSampleCount] = PrivateData._uORB_Gryo___Yaw;
+        FFTOverSample[0] += PrivateData._uORB_Gryo__Roll;
+        FFTOverSample[1] += PrivateData._uORB_Gryo_Pitch;
+        FFTOverSample[2] += PrivateData._uORB_Gryo___Yaw;
         FFTOverSampleCount++;
-
-        if (FFTOverSampleCount >= (MPUUpdateFreq / 1000))
+        //DownSample DataSheet To 500hz
+        if (FFTOverSampleCount > (PrivateConfig.TargetFreqency / 1000))
         {
-            for (size_t x = 0; x < 3; x++)
-            {
-
-                float FFTDownSample = 0;
-                for (size_t i = 0; i < (MPUUpdateFreq / 1000); i++)
-                {
-                    FFTDownSample += FFTOverSample[x][i];
-                }
-                FFTDownSample /= (float)(MPUUpdateFreq / 1000);
-
-                FFTData[x][FFTCountDown].Re = FFTDownSample;
-                FFTData[x][FFTCountDown].Im = 0;
-            }
             FFTOverSampleCount = 0;
+            FFTData[0][FFTCountDown].Re = FFTOverSample[0] / (float)(PrivateConfig.TargetFreqency / 1000);
+            FFTData[1][FFTCountDown].Re = FFTOverSample[1] / (float)(PrivateConfig.TargetFreqency / 1000);
+            FFTData[2][FFTCountDown].Re = FFTOverSample[2] / (float)(PrivateConfig.TargetFreqency / 1000);
+            FFTData[0][FFTCountDown].Im = 0;
+            FFTData[1][FFTCountDown].Im = 0;
+            FFTData[2][FFTCountDown].Im = 0;
+            //
+            FFTOverSample[0] = 0;
+            FFTOverSample[1] = 0;
+            FFTOverSample[2] = 0;
             FFTCountDown++;
-            for (size_t x = 0; x < 3; x++)
-            {
-                if (FFTCountDown > 16)
-                {
-                    fft(FFTData[x], 16, FFTDataTmp[x]);
-                    for (size_t i = 0; i < 16; i++)
-                    {
-                        PrivateData.FFTSampleBox[x][i] = sqrt((FFTData[x][i].Re * FFTData[x][i].Re + FFTData[x][i].Im * FFTData[x][i].Im));
-                    }
+        }
 
-                    //This Part is from betaflight/INAV
-                    {
-                        int IndexMax = 0;
-                        int DataMax = 0;
-                        int IndexStart = 0;
-                        int CenterFreq = 250;
-                        bool FFTIncreased = false;
-
-                        for (int i = GyroNotchMinBox; i < 8; i++)
-                        {
-                            if (FFTIncreased || (PrivateData.FFTSampleBox[x][i] > PrivateData.FFTSampleBox[x][i - 1]))
-                            {
-                                if (!FFTIncreased)
-                                {
-                                    IndexStart = i;
-                                    FFTIncreased = true;
-                                }
-                                if (PrivateData.FFTSampleBox[x][i] > DataMax)
-                                {
-                                    DataMax = PrivateData.FFTSampleBox[x][i];
-                                    IndexMax = i;
-                                }
-                            }
-                        }
-
-                        if (FFTIncreased)
-                        {
-                            float cubedData = PrivateData.FFTSampleBox[x][IndexMax] * PrivateData.FFTSampleBox[x][IndexMax] * PrivateData.FFTSampleBox[x][IndexMax];
-                            float fftSum = cubedData;
-                            float fftWeightedSum = cubedData * (IndexMax + 1);
-                            // accumulate upper shoulder
-                            for (int i = IndexMax; i < 8; i++)
-                            {
-                                if (PrivateData.FFTSampleBox[x][i] > PrivateData.FFTSampleBox[x][i + 1])
-                                {
-                                    cubedData = PrivateData.FFTSampleBox[x][i] * PrivateData.FFTSampleBox[x][i] * PrivateData.FFTSampleBox[x][i];
-                                    fftSum += cubedData;
-                                    fftWeightedSum += cubedData * (i + 1);
-                                }
-                                else
-                                    break;
-                            }
-                            // accumulate lower shoulder
-                            for (int i = IndexMax; i > IndexStart + 1; i--)
-                            {
-                                if (PrivateData.FFTSampleBox[x][i] > PrivateData.FFTSampleBox[x][i - 1])
-                                {
-                                    cubedData = PrivateData.FFTSampleBox[x][i] * PrivateData.FFTSampleBox[x][i] * PrivateData.FFTSampleBox[x][i];
-                                    fftSum += cubedData;
-                                    fftWeightedSum += cubedData * (i + 1);
-                                }
-                                else
-                                    break;
-                            }
-
-                            float fftMeanIndex = 0;
-                            if (fftSum > 0)
-                            {
-                                fftMeanIndex = (fftWeightedSum / fftSum) - 1;
-                                CenterFreq = fftMeanIndex * 31.25;
-                            }
-                            else
-                            {
-                                CenterFreq = GyroDynamicNotchCenterLast[x];
-                            }
-                        }
-                        else
-                        {
-                            CenterFreq = GyroDynamicNotchCenterLast[x];
-                        }
-                        GyroDynamicNotchCenterLast[x] = biquadFilterApply(&GryoFilterDynamicFreq[x], CenterFreq);
-                        PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[x] = GyroDynamicNotchCenterLast[x];
-                    }
-                }
-            }
-            if (FFTCountDown > 16)
-            {
-                GyroDynamicNotchReady = true;
-                FFTCountDown = 0;
-            }
+        if (FFTCountDown > 16.f)
+        {
         }
     };
 
+    inline void IMUDynamicNotchUpdate(){
+
+    };
+
     int MPU9250_fd;
-    int MPUUpdateFreq = 1000;
     float MPU9250_Gryo_LSB = 16.4;    // +-2000dps
     float MPU9250_Accel_LSB = 2048.f; //+-16g
-    bool CompassEnable = false;
-    int MPU9250_I2CAddr = 0x68;
-    int MPU9250_SPI_Channel = 1;
-    int MPU9250_Type = MPUTypeSPI;
     int MPU9250_SPI_Freq = 10000000;
     unsigned char MPU9250_SPI_Config[20] = {0};
     unsigned char Tmp_MPU9250_Buffer[20] = {0};
     unsigned char Tmp_MPU9250_SPI_Buffer[20] = {0};
     MPUData PrivateData;
+    MPUConfig PrivateConfig;
     MadgwickAHRS *AHRSSys;
-
-    int GryoFilterType;
-    int AccelFilterType;
-    float MPUMixTraditionAplah;
     //CleanFlight Filter
     pt1Filter_t GryoFilterLPFX;
     pt1Filter_t GryoFilterLPFY;
@@ -633,26 +540,9 @@ private:
     biquadFilter_t GryoFilterBLPFY;
     biquadFilter_t GryoFilterBLPFZ;
 
-    int GyroDynamicNotchSample = 0;
-    bool GyroDynamicNotchReady = false;
-    bool GyroDynamicNotchEnable = false;
-    int FFTCountDown = 0;
-    int FFTAsixSampleCount = 0;
-    int FFTOverSampleCount = 0;
-
-    complex FFTData[3][25];
-    complex FFTDataTmp[3][25];
-    float FFTOverSample[3][2] = {0};
-    int GyroDynamicNotchCenterLast[3] = {250};
-    biquadFilter_t GryoFilterDynamicNotchX;
-    biquadFilter_t GryoFilterDynamicNotchY;
-    biquadFilter_t GryoFilterDynamicNotchZ;
-    biquadFilter_t GryoFilterDynamicFreq[3];
-
     pt1Filter_t AccelFilterLPFX;
     pt1Filter_t AccelFilterLPFY;
     pt1Filter_t AccelFilterLPFZ;
-
     biquadFilter_t AccelFilterBLPFX;
     biquadFilter_t AccelFilterBLPFY;
     biquadFilter_t AccelFilterBLPFZ;
@@ -664,11 +554,23 @@ private:
     pt1Filter_t VibeLPFY;
     pt1Filter_t VibeLPFZ;
 
-    float GyroNotchDyQ;
-    int GyroNotchMinBox;
-    int GyroNotchCutOff;
-    int GyroNotchCenterFreq;
     biquadFilter_t GyroNotchPitch;
     biquadFilter_t GyroNotch_Roll;
     biquadFilter_t GyroNotch__Yaw;
+
+    //Dynamic Filter
+    int FFTCountDown = 0;
+    int FFTAsixSampleCount = 0;
+    int FFTOverSampleCount = 0;
+    int GyroDynamicNotchSampleCount = 0;
+    bool GyroDynamicNotchReady = false;
+
+    complex FFTData[3][25];
+    complex FFTDataTmp[3][25];
+    float FFTOverSample[3] = {0};
+    int GyroDynamicNotchCenterLast[3] = {250};
+    biquadFilter_t GryoFilterDynamicNotchX;
+    biquadFilter_t GryoFilterDynamicNotchY;
+    biquadFilter_t GryoFilterDynamicNotchZ;
+    biquadFilter_t GryoFilterDynamicFreq[3];
 };
