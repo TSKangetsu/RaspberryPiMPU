@@ -45,6 +45,13 @@
 #define MAX_ACC_NEARNESS 0.33 // 33% or G error soft-accepted (0.67-1.33G)
 #define M_Ef 2.71828182845904523536f
 
+#define GAXP 0
+#define GAYR 1
+#define GAZY 2
+#define AAXN 0
+#define AAYN 1
+#define AAZN 2
+
 struct MPUConfig
 {
     int MPUType = MPUTypeSPI;
@@ -132,63 +139,60 @@ class RPiMPU9250
 public:
     inline RPiMPU9250(MPUConfig mpuConfig)
     {
-        //copy args
-        {
-            PrivateConfig = mpuConfig;
-        }
+        PrivateConfig = mpuConfig;
         //Settings all Filter
         {
             int DT = (float)(1.f / (float)PrivateConfig.TargetFreqency) * 1000000;
             switch (PrivateConfig.GyroFilterType)
             {
             case FilterLPFPT1:
-                pt1FilterInit(&GryoFilterLPFX, PrivateConfig.GyroFilterCutOff, DT * 1e-6f);
-                pt1FilterInit(&GryoFilterLPFY, PrivateConfig.GyroFilterCutOff, DT * 1e-6f);
-                pt1FilterInit(&GryoFilterLPFZ, PrivateConfig.GyroFilterCutOff, DT * 1e-6f);
+                pt1FilterInit(&GryoFilterLPF[GAXP], PrivateConfig.GyroFilterCutOff, DT * 1e-6f);
+                pt1FilterInit(&GryoFilterLPF[GAYR], PrivateConfig.GyroFilterCutOff, DT * 1e-6f);
+                pt1FilterInit(&GryoFilterLPF[GAZY], PrivateConfig.GyroFilterCutOff, DT * 1e-6f);
                 break;
 
             case FilterLPFBiquad:
-                biquadFilterInitLPF(&GryoFilterBLPFX, PrivateConfig.GyroFilterCutOff, DT);
-                biquadFilterInitLPF(&GryoFilterBLPFY, PrivateConfig.GyroFilterCutOff, DT);
-                biquadFilterInitLPF(&GryoFilterBLPFZ, PrivateConfig.GyroFilterCutOff, DT);
+                biquadFilterInitLPF(&GryoFilterBLPF[GAXP], PrivateConfig.GyroFilterCutOff, DT);
+                biquadFilterInitLPF(&GryoFilterBLPF[GAYR], PrivateConfig.GyroFilterCutOff, DT);
+                biquadFilterInitLPF(&GryoFilterBLPF[GAZY], PrivateConfig.GyroFilterCutOff, DT);
                 break;
             }
             switch (PrivateConfig.AccelFilterType)
             {
             case FilterLPFPT1:
-                pt1FilterInit(&AccelFilterLPFX, PrivateConfig.AccelFilterCutOff, DT * 1e-6f);
-                pt1FilterInit(&AccelFilterLPFY, PrivateConfig.AccelFilterCutOff, DT * 1e-6f);
-                pt1FilterInit(&AccelFilterLPFZ, PrivateConfig.AccelFilterCutOff, DT * 1e-6f);
+                pt1FilterInit(&AccelFilterLPF[AAXN], PrivateConfig.AccelFilterCutOff, DT * 1e-6f);
+                pt1FilterInit(&AccelFilterLPF[AAYN], PrivateConfig.AccelFilterCutOff, DT * 1e-6f);
+                pt1FilterInit(&AccelFilterLPF[AAZN], PrivateConfig.AccelFilterCutOff, DT * 1e-6f);
                 break;
 
             case FilterLPFBiquad:
-                biquadFilterInitLPF(&AccelFilterBLPFX, PrivateConfig.AccelFilterCutOff, DT);
-                biquadFilterInitLPF(&AccelFilterBLPFY, PrivateConfig.AccelFilterCutOff, DT);
-                biquadFilterInitLPF(&AccelFilterBLPFZ, PrivateConfig.AccelFilterCutOff, DT);
+                biquadFilterInitLPF(&AccelFilterBLPF[AAXN], PrivateConfig.AccelFilterCutOff, DT);
+                biquadFilterInitLPF(&AccelFilterBLPF[AAYN], PrivateConfig.AccelFilterCutOff, DT);
+                biquadFilterInitLPF(&AccelFilterBLPF[AAZN], PrivateConfig.AccelFilterCutOff, DT);
                 break;
             }
 
             if (PrivateConfig.GyroFilterNotchCutOff)
             {
-                biquadFilterInitNotch(&GyroNotchPitch, DT, PrivateConfig.GyroFilterNotchCenterFreq, PrivateConfig.GyroFilterNotchCutOff);
-                biquadFilterInitNotch(&GyroNotch_Roll, DT, PrivateConfig.GyroFilterNotchCenterFreq, PrivateConfig.GyroFilterNotchCutOff);
-                biquadFilterInitNotch(&GyroNotch__Yaw, DT, PrivateConfig.GyroFilterNotchCenterFreq, PrivateConfig.GyroFilterNotchCutOff);
+                biquadFilterInitNotch(&GyroNotchFilter[GAXP], DT, PrivateConfig.GyroFilterNotchCenterFreq, PrivateConfig.GyroFilterNotchCutOff);
+                biquadFilterInitNotch(&GyroNotchFilter[GAYR], DT, PrivateConfig.GyroFilterNotchCenterFreq, PrivateConfig.GyroFilterNotchCutOff);
+                biquadFilterInitNotch(&GyroNotchFilter[GAZY], DT, PrivateConfig.GyroFilterNotchCenterFreq, PrivateConfig.GyroFilterNotchCutOff);
             }
             if (PrivateConfig.DynamicNotchEnable)
             {
-                biquadFilterInitLPF(&GryoFilterDynamicFreq[0], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(PrivateConfig.TargetFreqency / 1000) * 2.f)));
-                biquadFilterInitLPF(&GryoFilterDynamicFreq[1], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(PrivateConfig.TargetFreqency / 1000) * 2.f)));
-                biquadFilterInitLPF(&GryoFilterDynamicFreq[2], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(PrivateConfig.TargetFreqency / 1000) * 2.f)));
-                biquadFilterInit(&GryoFilterDynamicNotchX, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
-                biquadFilterInit(&GryoFilterDynamicNotchY, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
-                biquadFilterInit(&GryoFilterDynamicNotchZ, DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
+                biquadFilterInitLPF(&GryoFilterDynamicFreq[GAXP], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(PrivateConfig.TargetFreqency / 1000) * 2.f)));
+                biquadFilterInitLPF(&GryoFilterDynamicFreq[GAYR], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(PrivateConfig.TargetFreqency / 1000) * 2.f)));
+                biquadFilterInitLPF(&GryoFilterDynamicFreq[GAZY], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(PrivateConfig.TargetFreqency / 1000) * 2.f)));
+                biquadFilterInit(&GryoFilterDynamicNotch[GAXP], DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
+                biquadFilterInit(&GryoFilterDynamicNotch[GAYR], DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
+                biquadFilterInit(&GryoFilterDynamicNotch[GAZY], DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
             }
-            pt1FilterInit(&VibeFloorLPFX, ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
-            pt1FilterInit(&VibeFloorLPFY, ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
-            pt1FilterInit(&VibeFloorLPFZ, ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
-            pt1FilterInit(&VibeLPFX, ACC_VIBE_FILT_HZ, DT * 1e-6f);
-            pt1FilterInit(&VibeLPFY, ACC_VIBE_FILT_HZ, DT * 1e-6f);
-            pt1FilterInit(&VibeLPFZ, ACC_VIBE_FILT_HZ, DT * 1e-6f);
+            pt1FilterInit(&VibeFloorLPF[AAXN], ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
+            pt1FilterInit(&VibeFloorLPF[AAYN], ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
+            pt1FilterInit(&VibeFloorLPF[AAZN], ACC_VIBE_FLOOR_FILT_HZ, DT * 1e-6f);
+            pt1FilterInit(&VibeLPF[AAXN], ACC_VIBE_FILT_HZ, DT * 1e-6f);
+            pt1FilterInit(&VibeLPF[AAYN], ACC_VIBE_FILT_HZ, DT * 1e-6f);
+            pt1FilterInit(&VibeLPF[AAZN], ACC_VIBE_FILT_HZ, DT * 1e-6f);
         }
         // MPUInit
         IMUSensorsDeviceInit();
@@ -290,72 +294,70 @@ public:
         PrivateData._uORB_MPU9250_A_X = PrivateData._uORB_MPU9250_A_X * PrivateData._flag_MPU9250_A_X_Scal - PrivateData._flag_MPU9250_A_X_Cali;
         PrivateData._uORB_MPU9250_A_Y = PrivateData._uORB_MPU9250_A_Y * PrivateData._flag_MPU9250_A_Y_Scal - PrivateData._flag_MPU9250_A_Y_Cali;
         PrivateData._uORB_MPU9250_A_Z = PrivateData._uORB_MPU9250_A_Z * PrivateData._flag_MPU9250_A_Z_Scal - PrivateData._flag_MPU9250_A_Z_Cali;
-        float AccVibeFloorX = pt1FilterApply(&VibeFloorLPFX, (PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
-        float AccVibeFloorY = pt1FilterApply(&VibeFloorLPFY, (PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
-        float AccVibeFloorZ = pt1FilterApply(&VibeFloorLPFZ, (PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
-        PrivateData._uORB_Accel_VIBE_X = pt1FilterApply(&VibeLPFX, (pow((((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB) - AccVibeFloorX), 2)));
-        PrivateData._uORB_Accel_VIBE_Y = pt1FilterApply(&VibeLPFY, (pow((((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB) - AccVibeFloorY), 2)));
-        PrivateData._uORB_Accel_VIBE_Z = pt1FilterApply(&VibeLPFZ, (pow((((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB) - AccVibeFloorZ), 2)));
+        float AccVibeFloorX = pt1FilterApply(&VibeFloorLPF[AAXN], (PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
+        float AccVibeFloorY = pt1FilterApply(&VibeFloorLPF[AAYN], (PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
+        float AccVibeFloorZ = pt1FilterApply(&VibeFloorLPF[AAZN], (PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
+        PrivateData._uORB_Accel_VIBE_X = pt1FilterApply(&VibeLPF[AAXN], (pow((((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB) - AccVibeFloorX), 2)));
+        PrivateData._uORB_Accel_VIBE_Y = pt1FilterApply(&VibeLPF[AAYN], (pow((((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB) - AccVibeFloorY), 2)));
+        PrivateData._uORB_Accel_VIBE_Z = pt1FilterApply(&VibeLPF[AAZN], (pow((((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB) - AccVibeFloorZ), 2)));
         //========================= //=========================
         switch (PrivateConfig.GyroFilterType)
         {
         case FilterLPFPT1:
-            PrivateData._uORB_Gryo_Pitch = pt1FilterApply(&GryoFilterLPFX, ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB));
-            PrivateData._uORB_Gryo__Roll = pt1FilterApply(&GryoFilterLPFY, ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB));
-            PrivateData._uORB_Gryo___Yaw = pt1FilterApply(&GryoFilterLPFZ, ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB));
+            PrivateData._uORB_Gryo_Pitch = pt1FilterApply(&GryoFilterLPF[GAXP], ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB));
+            PrivateData._uORB_Gryo__Roll = pt1FilterApply(&GryoFilterLPF[GAYR], ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB));
+            PrivateData._uORB_Gryo___Yaw = pt1FilterApply(&GryoFilterLPF[GAZY], ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB));
             break;
         case FilterLPFBiquad:
-            PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterBLPFX, ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB));
-            PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterBLPFY, ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB));
-            PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterBLPFZ, ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB));
+            PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterBLPF[GAXP], ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB));
+            PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterBLPF[GAYR], ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB));
+            PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterBLPF[GAZY], ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB));
             break;
         }
-        //
-        if (PrivateConfig.GyroFilterNotchCutOff)
-        {
-            PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GyroNotchPitch, PrivateData._uORB_Gryo_Pitch);
-            PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GyroNotch_Roll, PrivateData._uORB_Gryo__Roll);
-            PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GyroNotch__Yaw, PrivateData._uORB_Gryo___Yaw);
-        }
-        if (PrivateConfig.DynamicNotchEnable)
-        {
-            if (GyroDynamicNotchReady)
-            {
-                int DT = (float)(1.f / (float)PrivateConfig.TargetFreqency) * 1000000.f;
-                biquadFilterUpdate(&GryoFilterDynamicNotchX, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[0], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
-                biquadFilterUpdate(&GryoFilterDynamicNotchY, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[1], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
-                biquadFilterUpdate(&GryoFilterDynamicNotchZ, PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[2], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
-                GyroDynamicNotchReady = false;
-            }
-            PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterDynamicNotchY, PrivateData._uORB_Gryo__Roll);
-            PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterDynamicNotchX, PrivateData._uORB_Gryo_Pitch);
-            PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterDynamicNotchZ, PrivateData._uORB_Gryo___Yaw);
-        }
-        if (PrivateConfig.GyroDynamicAnalyse &&
-            GyroDynamicNotchSampleCount == (PrivateConfig.TargetFreqency / 1000) &&
-            PrivateConfig.TargetFreqency >= 1000)
-        {
-            IMUDynamicNotchUpdate();
-            GyroDynamicNotchSampleCount = 0;
-        }
-        else
-            GyroDynamicNotchSampleCount++;
-        //
         switch (PrivateConfig.AccelFilterType)
         {
         case FilterLPFPT1:
-            PrivateData._uORB_MPU9250_ADF_X = pt1FilterApply(&AccelFilterLPFX, ((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
-            PrivateData._uORB_MPU9250_ADF_Y = pt1FilterApply(&AccelFilterLPFY, ((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
-            PrivateData._uORB_MPU9250_ADF_Z = pt1FilterApply(&AccelFilterLPFZ, ((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
+            PrivateData._uORB_MPU9250_ADF_X = pt1FilterApply(&AccelFilterLPF[AAXN], ((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
+            PrivateData._uORB_MPU9250_ADF_Y = pt1FilterApply(&AccelFilterLPF[AAYN], ((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
+            PrivateData._uORB_MPU9250_ADF_Z = pt1FilterApply(&AccelFilterLPF[AAZN], ((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
             break;
         case FilterLPFBiquad:
-            PrivateData._uORB_MPU9250_ADF_X = biquadFilterApply(&AccelFilterBLPFX, ((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
-            PrivateData._uORB_MPU9250_ADF_Y = biquadFilterApply(&AccelFilterBLPFY, ((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
-            PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelFilterBLPFZ, ((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
+            PrivateData._uORB_MPU9250_ADF_X = biquadFilterApply(&AccelFilterBLPF[AAXN], ((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
+            PrivateData._uORB_MPU9250_ADF_Y = biquadFilterApply(&AccelFilterBLPF[AAYN], ((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
+            PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelFilterBLPF[AAZN], ((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
             break;
         }
+        if (PrivateConfig.GyroFilterNotchCutOff)
+        {
+            PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GyroNotchFilter[GAXP], PrivateData._uORB_Gryo_Pitch);
+            PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GyroNotchFilter[GAYR], PrivateData._uORB_Gryo__Roll);
+            PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GyroNotchFilter[GAZY], PrivateData._uORB_Gryo___Yaw);
+        }
         //========================= //=========================
-        //TODO: caculate accelweight
+        if (PrivateConfig.GyroDynamicAnalyse && GyroDynamicFFTSampleCount == (PrivateConfig.TargetFreqency / 1000) && PrivateConfig.TargetFreqency >= 1000)
+        {
+            IMUSensorFFTAnalyse();
+            GyroDynamicFFTSampleCount = 0;
+            //
+            if (PrivateConfig.DynamicNotchEnable)
+            {
+                if (GyroDynamicNotchReady)
+                {
+                    IMUDynamicNotchUpdate();
+                    int DT = (float)(1.f / (float)PrivateConfig.TargetFreqency) * 1000000.f;
+                    biquadFilterUpdate(&GryoFilterDynamicNotch[GAXP], PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[GAXP], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
+                    biquadFilterUpdate(&GryoFilterDynamicNotch[GAYR], PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[GAYR], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
+                    biquadFilterUpdate(&GryoFilterDynamicNotch[GAZY], PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[GAZY], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
+                    GyroDynamicNotchReady = false;
+                }
+                PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterDynamicNotch[GAXP], PrivateData._uORB_Gryo_Pitch);
+                PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterDynamicNotch[GAYR], PrivateData._uORB_Gryo__Roll);
+                PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterDynamicNotch[GAZY], PrivateData._uORB_Gryo___Yaw);
+            }
+        }
+        else
+            GyroDynamicFFTSampleCount++;
+        //========================= //=========================
         if ((PrivateData._uORB_MPU9250_A_Vector > (PrivateData._uORB_MPU9250_A_Static_Vector - MAX_ACC_NEARNESS)) &&
             (PrivateData._uORB_MPU9250_A_Vector < (PrivateData._uORB_MPU9250_A_Static_Vector + MAX_ACC_NEARNESS)))
             PrivateData.MPUMixTraditionBeta = PrivateConfig.GyroToAccelBeta;
@@ -473,7 +475,7 @@ private:
         else if (PrivateConfig.MPUType == MPUTypeSPI)
         {
             Tmp_MPU9250_SPI_Buffer[0] = 0xBB;
-            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, Tmp_MPU9250_SPI_Buffer, 21);
+            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, Tmp_MPU9250_SPI_Buffer, 15);
             PrivateData._uORB_MPU9250_A_X = (short)((int)Tmp_MPU9250_SPI_Buffer[1] << 8 | (int)Tmp_MPU9250_SPI_Buffer[2]) * -1;
             PrivateData._uORB_MPU9250_A_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[3] << 8 | (int)Tmp_MPU9250_SPI_Buffer[4]);
             PrivateData._uORB_MPU9250_A_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[5] << 8 | (int)Tmp_MPU9250_SPI_Buffer[6]);
@@ -482,38 +484,54 @@ private:
             PrivateData._uORB_MPU9250_G_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[11] << 8 | (int)Tmp_MPU9250_SPI_Buffer[12]);
             PrivateData._uORB_MPU9250_G_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[13] << 8 | (int)Tmp_MPU9250_SPI_Buffer[14]);
 
-            PrivateData._uORB_MPU9250_M_X = (short)((int)Tmp_MPU9250_SPI_Buffer[16] << 8) | (int)Tmp_MPU9250_SPI_Buffer[15];
-            PrivateData._uORB_MPU9250_M_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[18] << 8) | (int)Tmp_MPU9250_SPI_Buffer[17];
-            PrivateData._uORB_MPU9250_M_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[20] << 8) | (int)Tmp_MPU9250_SPI_Buffer[19];
+            // PrivateData._uORB_MPU9250_M_X = (short)((int)Tmp_MPU9250_SPI_Buffer[16] << 8) | (int)Tmp_MPU9250_SPI_Buffer[15];
+            // PrivateData._uORB_MPU9250_M_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[18] << 8) | (int)Tmp_MPU9250_SPI_Buffer[17];
+            // PrivateData._uORB_MPU9250_M_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[20] << 8) | (int)Tmp_MPU9250_SPI_Buffer[19];
         }
     }
 
     //Collect GryoData 1000HZ and DownSample to 500hz by 1/2
     inline void IMUSensorFFTAnalyse()
     {
-        FFTOverSample[0] += PrivateData._uORB_Gryo__Roll;
-        FFTOverSample[1] += PrivateData._uORB_Gryo_Pitch;
-        FFTOverSample[2] += PrivateData._uORB_Gryo___Yaw;
-        FFTOverSampleCount++;
-        //DownSample DataSheet To 500hz
-        if (FFTOverSampleCount > (PrivateConfig.TargetFreqency / 1000))
+        if (FFTCountDown < 16)
         {
-            FFTOverSampleCount = 0;
-            FFTData[0][FFTCountDown].Re = FFTOverSample[0] / (float)(PrivateConfig.TargetFreqency / 1000);
-            FFTData[1][FFTCountDown].Re = FFTOverSample[1] / (float)(PrivateConfig.TargetFreqency / 1000);
-            FFTData[2][FFTCountDown].Re = FFTOverSample[2] / (float)(PrivateConfig.TargetFreqency / 1000);
-            FFTData[0][FFTCountDown].Im = 0;
-            FFTData[1][FFTCountDown].Im = 0;
-            FFTData[2][FFTCountDown].Im = 0;
-            //
-            FFTOverSample[0] = 0;
-            FFTOverSample[1] = 0;
-            FFTOverSample[2] = 0;
-            FFTCountDown++;
+            FFTOverSample[0] += PrivateData._uORB_Gryo__Roll;
+            FFTOverSample[1] += PrivateData._uORB_Gryo_Pitch;
+            FFTOverSample[2] += PrivateData._uORB_Gryo___Yaw;
+            FFTOverSampleCount++;
+            //DownSample DataSheet To 500hz
+            if (FFTOverSampleCount >= (PrivateConfig.TargetFreqency / 1000))
+            {
+                FFTOverSampleCount = 0;
+                FFTData[0][FFTCountDown].Re = FFTOverSample[0] / (float)(PrivateConfig.TargetFreqency / 1000);
+                FFTData[1][FFTCountDown].Re = FFTOverSample[1] / (float)(PrivateConfig.TargetFreqency / 1000);
+                FFTData[2][FFTCountDown].Re = FFTOverSample[2] / (float)(PrivateConfig.TargetFreqency / 1000);
+                FFTData[0][FFTCountDown].Im = 0;
+                FFTData[1][FFTCountDown].Im = 0;
+                FFTData[2][FFTCountDown].Im = 0;
+                //
+                FFTOverSample[0] = 0;
+                FFTOverSample[1] = 0;
+                FFTOverSample[2] = 0;
+                FFTCountDown++;
+            }
+        }
+        // FFT caculate using 3 loop frame
+        if (FFTCountDown >= 16)
+        {
+            fft(FFTData[GyroDynamicFFTCaculateCount], 16, FFTDataTmp[GyroDynamicFFTCaculateCount]);
+            for (size_t i = 0; i < 16; i++)
+                PrivateData.FFTSampleBox[GyroDynamicFFTCaculateCount][i] =
+                    sqrt((FFTData[GyroDynamicFFTCaculateCount][i].Re * FFTData[GyroDynamicFFTCaculateCount][i].Re +
+                          FFTData[GyroDynamicFFTCaculateCount][i].Im * FFTData[GyroDynamicFFTCaculateCount][i].Im));
+            GyroDynamicFFTCaculateCount--;
         }
 
-        if (FFTCountDown > 16.f)
+        if (FFTCountDown >= 16 && GyroDynamicFFTCaculateCount < 0)
         {
+            FFTCountDown = 0;
+            GyroDynamicFFTCaculateCount = 2;
+            GyroDynamicNotchReady = true;
         }
     };
 
@@ -532,45 +550,24 @@ private:
     MPUConfig PrivateConfig;
     MadgwickAHRS *AHRSSys;
     //CleanFlight Filter
-    pt1Filter_t GryoFilterLPFX;
-    pt1Filter_t GryoFilterLPFY;
-    pt1Filter_t GryoFilterLPFZ;
-
-    biquadFilter_t GryoFilterBLPFX;
-    biquadFilter_t GryoFilterBLPFY;
-    biquadFilter_t GryoFilterBLPFZ;
-
-    pt1Filter_t AccelFilterLPFX;
-    pt1Filter_t AccelFilterLPFY;
-    pt1Filter_t AccelFilterLPFZ;
-    biquadFilter_t AccelFilterBLPFX;
-    biquadFilter_t AccelFilterBLPFY;
-    biquadFilter_t AccelFilterBLPFZ;
-
-    pt1Filter_t VibeFloorLPFX;
-    pt1Filter_t VibeFloorLPFY;
-    pt1Filter_t VibeFloorLPFZ;
-    pt1Filter_t VibeLPFX;
-    pt1Filter_t VibeLPFY;
-    pt1Filter_t VibeLPFZ;
-
-    biquadFilter_t GyroNotchPitch;
-    biquadFilter_t GyroNotch_Roll;
-    biquadFilter_t GyroNotch__Yaw;
-
+    pt1Filter_t VibeLPF[3];
+    pt1Filter_t VibeFloorLPF[3];
+    pt1Filter_t GryoFilterLPF[3];
+    pt1Filter_t AccelFilterLPF[3];
+    biquadFilter_t GryoFilterBLPF[3];
+    biquadFilter_t AccelFilterBLPF[3];
+    biquadFilter_t GyroNotchFilter[3];
     //Dynamic Filter
     int FFTCountDown = 0;
     int FFTAsixSampleCount = 0;
     int FFTOverSampleCount = 0;
-    int GyroDynamicNotchSampleCount = 0;
+    int GyroDynamicFFTSampleCount = 0;
+    int GyroDynamicFFTCaculateCount = 0;
     bool GyroDynamicNotchReady = false;
-
     complex FFTData[3][25];
     complex FFTDataTmp[3][25];
     float FFTOverSample[3] = {0};
     int GyroDynamicNotchCenterLast[3] = {250};
-    biquadFilter_t GryoFilterDynamicNotchX;
-    biquadFilter_t GryoFilterDynamicNotchY;
-    biquadFilter_t GryoFilterDynamicNotchZ;
+    biquadFilter_t GryoFilterDynamicNotch[3];
     biquadFilter_t GryoFilterDynamicFreq[3];
 };
