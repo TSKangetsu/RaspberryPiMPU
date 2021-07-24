@@ -431,7 +431,7 @@ private:
             MPU9250_SPI_Config[1] = 0x00;
             wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); //reset
             MPU9250_SPI_Config[0] = 0x1d;
-            MPU9250_SPI_Config[1] = 0x03;                                          //FChoice 1, DLPF 3 , dlpf cut off 41hz
+            MPU9250_SPI_Config[1] = 0x00;                                          //FChoice 1, DLPF 0 , dlpf cut off 460hz
             wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); // Accel2
             MPU9250_SPI_Config[0] = 0x1c;
             MPU9250_SPI_Config[1] = 0x18;                                          //Full AccelScale +- 16g
