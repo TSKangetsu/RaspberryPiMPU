@@ -29,6 +29,8 @@
 #define MPUAccelScalX 10
 #define MPUAccelScalY 11
 #define MPUAccelScalZ 12
+#define MPUAccelTRIM_Roll 13
+#define MPUAccelTRIMPitch 14
 
 #define FilterLPFPT1 0
 #define FilterLPFBiquad 1
@@ -128,6 +130,8 @@ struct MPUData
     double _flag_MPU9250_A_X_Cali = 0;
     double _flag_MPU9250_A_Y_Cali = 0;
     double _flag_MPU9250_A_Z_Cali = 0;
+    double _flag_MPU9250_A_TP_Cali = 0;
+    double _flag_MPU9250_A_TR_Cali = 0;
 
     float FFTSampleBox[3][25] = {{0}};
     float _uORB_Gyro_Dynamic_NotchCenterHZ[3] = {350, 350, 350};
@@ -211,6 +215,8 @@ public:
         PrivateData._flag_MPU9250_A_X_Cali = AccelCaliData[MPUAccelCaliX];
         PrivateData._flag_MPU9250_A_Y_Cali = AccelCaliData[MPUAccelCaliY];
         PrivateData._flag_MPU9250_A_Z_Cali = AccelCaliData[MPUAccelCaliZ];
+        PrivateData._flag_MPU9250_A_TR_Cali = AccelCaliData[MPUAccelTRIM_Roll];
+        PrivateData._flag_MPU9250_A_TP_Cali = AccelCaliData[MPUAccelTRIMPitch];
 
         double _Tmp_Gryo_X_Cali = 0;
         double _Tmp_Gryo_Y_Cali = 0;
@@ -367,12 +373,12 @@ public:
         else
             GyroDynamicFFTSampleCount++;
         //========================= //=========================
-        // if ((PrivateData._uORB_MPU9250_A_Vector > (PrivateData._uORB_MPU9250_A_Static_Vector - MAX_ACC_NEARNESS)) &&
-        //     (PrivateData._uORB_MPU9250_A_Vector < (PrivateData._uORB_MPU9250_A_Static_Vector + MAX_ACC_NEARNESS)))
-        //     PrivateData.MPUMixTraditionBeta = PrivateConfig.GyroToAccelBeta;
-        // else
-        //     PrivateData.MPUMixTraditionBeta = 0.f;
-        PrivateData.MPUMixTraditionBeta = PrivateConfig.GyroToAccelBeta;
+        if ((PrivateData._uORB_MPU9250_A_Vector > (PrivateData._uORB_MPU9250_A_Static_Vector - MAX_ACC_NEARNESS)) &&
+            (PrivateData._uORB_MPU9250_A_Vector < (PrivateData._uORB_MPU9250_A_Static_Vector + MAX_ACC_NEARNESS)))
+            PrivateData.MPUMixTraditionBeta = PrivateConfig.GyroToAccelBeta;
+        else
+            PrivateData.MPUMixTraditionBeta = 0.f;
+        // PrivateData.MPUMixTraditionBeta = PrivateConfig.GyroToAccelBeta;
         AHRSSys->MadgwickSetAccelWeight(PrivateData.MPUMixTraditionBeta);
         AHRSSys->MadgwickAHRSupdateIMU(PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo___Yaw,
                                        (-1.f * PrivateData._uORB_MPU9250_ADF_X),
@@ -386,6 +392,8 @@ public:
         PrivateData._uORB_Real__Roll *= 180.f / PI;
         PrivateData._uORB_Real_Pitch *= 180.f / PI;
         PrivateData._uORB_Real___Yaw *= 180.f / PI;
+        PrivateData._uORB_Real__Roll += PrivateData._flag_MPU9250_A_TR_Cali;
+        PrivateData._uORB_Real_Pitch += PrivateData._flag_MPU9250_A_TP_Cali;
         //========================= //=========================
         PrivateData._uORB_MPU9250_A_Vector = sqrtf((PrivateData._uORB_MPU9250_ADF_X * PrivateData._uORB_MPU9250_ADF_X) +
                                                    (PrivateData._uORB_MPU9250_ADF_Y * PrivateData._uORB_MPU9250_ADF_Y) +
@@ -393,8 +401,8 @@ public:
         PrivateData._uORB_Accel_Pitch = atan2((float)PrivateData._uORB_MPU9250_ADF_Y, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
         PrivateData._uORB_Accel__Roll = atan2((float)PrivateData._uORB_MPU9250_ADF_X, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
         //========================= //=========================
-        PrivateData._uORB_MPU9250_Quaternion = Eigen::AngleAxisd((PrivateData._uORB_Real__Roll * (PI / 180.f)), Eigen::Vector3d::UnitZ()) *
-                                               Eigen::AngleAxisd((-1.f * PrivateData._uORB_Real_Pitch * (PI / 180.f)), Eigen::Vector3d::UnitY()) *
+        PrivateData._uORB_MPU9250_Quaternion = Eigen::AngleAxisd(((PrivateData._uORB_Real__Roll - PrivateData._flag_MPU9250_A_TR_Cali) * (PI / 180.f)), Eigen::Vector3d::UnitZ()) *
+                                               Eigen::AngleAxisd(((-1.f * (PrivateData._uORB_Real_Pitch - PrivateData._flag_MPU9250_A_TP_Cali)) * (PI / 180.f)), Eigen::Vector3d::UnitY()) *
                                                Eigen::AngleAxisd((0 * (PI / 180.f)), Eigen::Vector3d::UnitX());
 
         PrivateData._uORB_MPU9250_RotationMatrix = PrivateData._uORB_MPU9250_Quaternion.normalized().toRotationMatrix();
