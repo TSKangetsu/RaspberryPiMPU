@@ -69,6 +69,8 @@ struct MPUConfig
     //
     int GyroFilterType = FilterLPFPT1;
     int GyroFilterCutOff = 90;
+    int GyroFilterTypeST2 = FilterLPFPT1;
+    int GyroFilterCutOffST2 = 0;
     int GyroFilterNotchCenterFreq = 150;
     int GyroFilterNotchCutOff = 0;
     //
@@ -161,6 +163,20 @@ public:
                 biquadFilterInitLPF(&GryoFilterBLPF[GAXP], PrivateConfig.GyroFilterCutOff, DT);
                 biquadFilterInitLPF(&GryoFilterBLPF[GAYR], PrivateConfig.GyroFilterCutOff, DT);
                 biquadFilterInitLPF(&GryoFilterBLPF[GAZY], PrivateConfig.GyroFilterCutOff, DT);
+                break;
+            }
+            switch (PrivateConfig.GyroFilterTypeST2)
+            {
+            case FilterLPFPT1:
+                pt1FilterInit(&GryoFilterLPFST2[GAXP], PrivateConfig.GyroFilterCutOffST2, DT * 1e-6f);
+                pt1FilterInit(&GryoFilterLPFST2[GAYR], PrivateConfig.GyroFilterCutOffST2, DT * 1e-6f);
+                pt1FilterInit(&GryoFilterLPFST2[GAZY], PrivateConfig.GyroFilterCutOffST2, DT * 1e-6f);
+                break;
+
+            case FilterLPFBiquad:
+                biquadFilterInitLPF(&GryoFilterBLPFST2[GAXP], PrivateConfig.GyroFilterCutOffST2, DT);
+                biquadFilterInitLPF(&GryoFilterBLPFST2[GAYR], PrivateConfig.GyroFilterCutOffST2, DT);
+                biquadFilterInitLPF(&GryoFilterBLPFST2[GAZY], PrivateConfig.GyroFilterCutOffST2, DT);
                 break;
             }
             switch (PrivateConfig.AccelFilterType)
@@ -319,14 +335,51 @@ public:
         switch (PrivateConfig.GyroFilterType)
         {
         case FilterLPFPT1:
-            PrivateData._uORB_Gryo_Pitch = pt1FilterApply(&GryoFilterLPF[GAXP], ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB));
-            PrivateData._uORB_Gryo__Roll = pt1FilterApply(&GryoFilterLPF[GAYR], ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB));
-            PrivateData._uORB_Gryo___Yaw = pt1FilterApply(&GryoFilterLPF[GAZY], ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB));
+            if (PrivateConfig.GyroFilterCutOff)
+            {
+                PrivateData._uORB_Gryo_Pitch = pt1FilterApply(&GryoFilterLPF[GAXP], ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB));
+                PrivateData._uORB_Gryo__Roll = pt1FilterApply(&GryoFilterLPF[GAYR], ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB));
+                PrivateData._uORB_Gryo___Yaw = pt1FilterApply(&GryoFilterLPF[GAZY], ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB));
+            }
+            else
+            {
+                PrivateData._uORB_Gryo_Pitch = ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB);
+                PrivateData._uORB_Gryo__Roll = ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB);
+                PrivateData._uORB_Gryo___Yaw = ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB);
+            }
             break;
         case FilterLPFBiquad:
-            PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterBLPF[GAXP], ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB));
-            PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterBLPF[GAYR], ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB));
-            PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterBLPF[GAZY], ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB));
+            if (PrivateConfig.GyroFilterCutOff)
+            {
+                PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterBLPF[GAXP], ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB));
+                PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterBLPF[GAYR], ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB));
+                PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterBLPF[GAZY], ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB));
+            }
+            else
+            {
+                PrivateData._uORB_Gryo_Pitch = ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB);
+                PrivateData._uORB_Gryo__Roll = ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB);
+                PrivateData._uORB_Gryo___Yaw = ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB);
+            }
+            break;
+        }
+        switch (PrivateConfig.GyroFilterTypeST2)
+        {
+        case FilterLPFPT1:
+            if (PrivateConfig.GyroFilterCutOffST2)
+            {
+                PrivateData._uORB_Gryo_Pitch = pt1FilterApply(&GryoFilterLPFST2[GAXP], PrivateData._uORB_Gryo_Pitch);
+                PrivateData._uORB_Gryo__Roll = pt1FilterApply(&GryoFilterLPFST2[GAYR], PrivateData._uORB_Gryo__Roll);
+                PrivateData._uORB_Gryo___Yaw = pt1FilterApply(&GryoFilterLPFST2[GAZY], PrivateData._uORB_Gryo___Yaw);
+            }
+            break;
+        case FilterLPFBiquad:
+            if (PrivateConfig.GyroFilterCutOffST2)
+            {
+                PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterBLPFST2[GAXP], PrivateData._uORB_Gryo_Pitch);
+                PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterBLPFST2[GAYR], PrivateData._uORB_Gryo__Roll);
+                PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterBLPFST2[GAZY], PrivateData._uORB_Gryo___Yaw);
+            }
             break;
         }
         switch (PrivateConfig.AccelFilterType)
@@ -647,8 +700,10 @@ private:
     pt1Filter_t VibeLPF[3];
     pt1Filter_t VibeFloorLPF[3];
     pt1Filter_t GryoFilterLPF[3];
+    pt1Filter_t GryoFilterLPFST2[3];
     pt1Filter_t AccelFilterLPF[3];
     biquadFilter_t GryoFilterBLPF[3];
+    biquadFilter_t GryoFilterBLPFST2[3];
     biquadFilter_t AccelFilterBLPF[3];
     biquadFilter_t GyroNotchFilter[3];
     //Dynamic Filter
