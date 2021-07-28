@@ -218,7 +218,7 @@ public:
         }
         // MPUInit
         IMUSensorsDeviceInit();
-        AHRSSys = new MadgwickAHRS(PrivateConfig.GyroToAccelBeta, PrivateConfig.TargetFreqency);
+        AHRSSys.reset(new MadgwickAHRS(PrivateConfig.GyroToAccelBeta, PrivateConfig.TargetFreqency));
     };
 
     // Gryo must be Calibration Before Get MPU Data, This Function Require a Correctly Accel Calibration
@@ -481,6 +481,12 @@ public:
         AHRSSys->MadgwickResetToAccel();
     }
 
+    inline ~RPiMPU9250()
+    {
+        AHRSSys.reset();
+        close(MPU9250_fd);
+    };
+
 private:
     inline void IMUSensorsDeviceInit()
     {
@@ -517,6 +523,9 @@ private:
             wiringPiI2CWriteReg8(MPU9250_fd, 26, 0x00);           //config
             wiringPiI2CWriteReg8(MPU9250_fd, 25, OutputSpeedCal); //DLPF's Sample rate's DIV
         }
+
+        if (MPU9250_fd < 0)
+            throw -1;
     };
 
     inline void IMUSensorsDataRead()
@@ -695,7 +704,7 @@ private:
     unsigned char Tmp_MPU9250_SPI_Buffer[20] = {0};
     MPUData PrivateData;
     MPUConfig PrivateConfig;
-    MadgwickAHRS *AHRSSys;
+    std::unique_ptr<MadgwickAHRS> AHRSSys;
     //CleanFlight Filter
     pt1Filter_t VibeLPF[3];
     pt1Filter_t VibeFloorLPF[3];
