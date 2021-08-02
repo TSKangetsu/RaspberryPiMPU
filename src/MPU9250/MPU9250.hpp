@@ -495,23 +495,42 @@ private:
         {
             MPU9250_fd = wiringPiSPISetup(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Freq);
             MPU9250_SPI_Config[0] = 0x6b;
+            MPU9250_SPI_Config[1] = 0x80;
+            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); //reset
+            usleep(100);
+            MPU9250_SPI_Config[0] = 0x68;
+            MPU9250_SPI_Config[1] = 0x07;
+            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); // BIT_GYRO | BIT_ACC | BIT_TEMP reset
+            usleep(100);
+            MPU9250_SPI_Config[0] = 0x6b;
             MPU9250_SPI_Config[1] = 0x00;
             wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); //reset
+            usleep(100);
+            MPU9250_SPI_Config[0] = 0x6b;
+            MPU9250_SPI_Config[1] = 0x01;
+            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); //reset
+            usleep(100);
+
             MPU9250_SPI_Config[0] = 0x1d;
             MPU9250_SPI_Config[1] = 0x00;                                          //FChoice 1, DLPF 0 , dlpf cut off 460hz
             wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); // Accel2
+            usleep(15);
             MPU9250_SPI_Config[0] = 0x1c;
             MPU9250_SPI_Config[1] = 0x18;                                          //Full AccelScale +- 16g
             wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); // Accel
+            usleep(15);
             MPU9250_SPI_Config[0] = 0x1b;
             MPU9250_SPI_Config[1] = 0x18;                                          // Full GyroScale +-2000dps, dlpf 250hz
             wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); // Gryo
+            usleep(15);
             MPU9250_SPI_Config[0] = 0x1a;
             MPU9250_SPI_Config[1] = 0x00;                                          //DLPF_CFG is 000 , with Gyro dlpf is 250hz
             wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); //config
+            usleep(15);
             MPU9250_SPI_Config[0] = 0x19;
             MPU9250_SPI_Config[1] = OutputSpeedCal;                                // 1khz / (1 + OutputSpeedCal) = 500hz; OutputSpeedCal is 2;
             wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); //DLPF's Sample rate's DIV , when > 250 hz lpf, not work
+            usleep(100);
         }
         else if (PrivateConfig.MPUType == MPUTypeI2C)
         {
