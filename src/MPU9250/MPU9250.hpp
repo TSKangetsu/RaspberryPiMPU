@@ -2,9 +2,8 @@
 #include <vector>
 #include <thread>
 #include <unistd.h>
-#include <wiringPi.h>
 #include <wiringPiI2C.h>
-#include <wiringPiSPI.h>
+#include <pigpio.h>
 
 #include "filter.h"
 #include "FFTPlugin.hpp"
@@ -484,7 +483,7 @@ public:
     inline ~RPiMPU9250()
     {
         AHRSSys.reset();
-        close(MPU9250_fd);
+        spiClose(MPU9250_fd);
     };
 
 private:
@@ -493,44 +492,49 @@ private:
         double OutputSpeedCal = (MPU_250HZ_LPF_SPEED / (float)PrivateConfig.TargetFreqency) - 1.f;
         if (PrivateConfig.MPUType == MPUTypeSPI)
         {
-            MPU9250_fd = wiringPiSPISetup(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Freq);
+            if (gpioInitialise() < 0)
+                throw -1;
+            MPU9250_fd = spiOpen(1, MPU9250_SPI_Freq, 0);
+            if (MPU9250_fd < 0)
+                throw -2;
+
             MPU9250_SPI_Config[0] = 0x6b;
             MPU9250_SPI_Config[1] = 0x80;
-            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); //reset
-            usleep(100);
+            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // reset
+            usleep(500);
             MPU9250_SPI_Config[0] = 0x68;
             MPU9250_SPI_Config[1] = 0x07;
-            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); // BIT_GYRO | BIT_ACC | BIT_TEMP reset
-            usleep(100);
+            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // BIT_GYRO | BIT_ACC | BIT_TEMP reset
+            usleep(500);
             MPU9250_SPI_Config[0] = 0x6b;
             MPU9250_SPI_Config[1] = 0x00;
-            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); //reset
-            usleep(100);
+            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // reset
+            usleep(500);
             MPU9250_SPI_Config[0] = 0x6b;
             MPU9250_SPI_Config[1] = 0x01;
-            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); //reset
-            usleep(100);
+            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // reset
+            usleep(500);
 
             MPU9250_SPI_Config[0] = 0x1d;
-            MPU9250_SPI_Config[1] = 0x00;                                          //FChoice 1, DLPF 0 , dlpf cut off 460hz
-            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); // Accel2
+            MPU9250_SPI_Config[1] = 0x00;                                   // FChoice 1, DLPF 0 , dlpf cut off 460hz
+            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // Accel2
             usleep(15);
             MPU9250_SPI_Config[0] = 0x1c;
-            MPU9250_SPI_Config[1] = 0x18;                                          //Full AccelScale +- 16g
-            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); // Accel
+            MPU9250_SPI_Config[1] = 0x18;                                   // Full AccelScale +- 16g
+            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // Accel
             usleep(15);
             MPU9250_SPI_Config[0] = 0x1b;
-            MPU9250_SPI_Config[1] = 0x18;                                          // Full GyroScale +-2000dps, dlpf 250hz
-            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); // Gryo
+            MPU9250_SPI_Config[1] = 0x18;                                   // Full GyroScale +-2000dps, dlpf 250hz
+            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // Gryo
             usleep(15);
             MPU9250_SPI_Config[0] = 0x1a;
-            MPU9250_SPI_Config[1] = 0x00;                                          //DLPF_CFG is 000 , with Gyro dlpf is 250hz
-            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); //config
+            MPU9250_SPI_Config[1] = 0x00;                                   // DLPF_CFG is 000 , with Gyro dlpf is 250hz
+            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // config
             usleep(15);
             MPU9250_SPI_Config[0] = 0x19;
-            MPU9250_SPI_Config[1] = OutputSpeedCal;                                // 1khz / (1 + OutputSpeedCal) = 500hz; OutputSpeedCal is 2;
-            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, MPU9250_SPI_Config, 2); //DLPF's Sample rate's DIV , when > 250 hz lpf, not work
-            usleep(100);
+            MPU9250_SPI_Config[1] = OutputSpeedCal;                         // 1khz / (1 + OutputSpeedCal) = 500hz; OutputSpeedCal is 2;
+            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // DLPF's Sample rate's DIV , when > 250 hz lpf, not work
+            usleep(500);
         }
         else if (PrivateConfig.MPUType == MPUTypeI2C)
         {
@@ -574,7 +578,7 @@ private:
         else if (PrivateConfig.MPUType == MPUTypeSPI)
         {
             Tmp_MPU9250_SPI_Buffer[0] = 0xBB;
-            wiringPiSPIDataRW(PrivateConfig.MPUSPIChannel, Tmp_MPU9250_SPI_Buffer, 15);
+            spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_Buffer, Tmp_MPU9250_SPI_Buffer, 15);
             PrivateData._uORB_MPU9250_A_X = (short)((int)Tmp_MPU9250_SPI_Buffer[1] << 8 | (int)Tmp_MPU9250_SPI_Buffer[2]) * -1;
             PrivateData._uORB_MPU9250_A_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[3] << 8 | (int)Tmp_MPU9250_SPI_Buffer[4]);
             PrivateData._uORB_MPU9250_A_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[5] << 8 | (int)Tmp_MPU9250_SPI_Buffer[6]);
@@ -718,9 +722,9 @@ private:
     float MPU9250_Gryo_LSB = 16.4;    // +-2000dps
     float MPU9250_Accel_LSB = 2048.f; //+-16g
     int MPU9250_SPI_Freq = 10000000;
-    unsigned char MPU9250_SPI_Config[20] = {0};
-    unsigned char Tmp_MPU9250_Buffer[20] = {0};
-    unsigned char Tmp_MPU9250_SPI_Buffer[20] = {0};
+    char MPU9250_SPI_Config[20] = {0};
+    char Tmp_MPU9250_Buffer[20] = {0};
+    char Tmp_MPU9250_SPI_Buffer[20] = {0};
     MPUData PrivateData;
     MPUConfig PrivateConfig;
     std::unique_ptr<MadgwickAHRS> AHRSSys;
