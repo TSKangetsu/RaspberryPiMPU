@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <wiringPiI2C.h>
 #include <pigpio.h>
+#include <sys/time.h>
 
 #include "filter.h"
 #include "FFTPlugin.hpp"
@@ -138,6 +139,8 @@ struct MPUData
     float _uORB_Gyro_Dynamic_NotchCenterHZ[3] = {350, 350, 350};
     Eigen::Matrix3d _uORB_MPU9250_RotationMatrix;
     Eigen::Quaternion<double> _uORB_MPU9250_Quaternion;
+
+    int _uORB_MPU9250_IMUUpdateTime = 0;
 };
 
 class RPiMPU9250
@@ -430,12 +433,13 @@ public:
             PrivateData.MPUMixTraditionBeta = PrivateConfig.GyroToAccelBeta;
         else
             PrivateData.MPUMixTraditionBeta = 0.f;
-        // PrivateData.MPUMixTraditionBeta = PrivateConfig.GyroToAccelBeta;
+
+        AHRSSys->MadgwickAHRSIMUApply(PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo___Yaw,
+                                      (-1.f * PrivateData._uORB_MPU9250_ADF_X),
+                                      (PrivateData._uORB_MPU9250_ADF_Y),
+                                      (PrivateData._uORB_MPU9250_ADF_Z),
+                                      ((float)PrivateData._uORB_MPU9250_IMUUpdateTime * 1e-6f));
         AHRSSys->MadgwickSetAccelWeight(PrivateData.MPUMixTraditionBeta);
-        AHRSSys->MadgwickAHRSupdateIMU(PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo___Yaw,
-                                       (-1.f * PrivateData._uORB_MPU9250_ADF_X),
-                                       (PrivateData._uORB_MPU9250_ADF_Y),
-                                       (PrivateData._uORB_MPU9250_ADF_Z));
         AHRSSys->MadgwickAHRSGetQ(PrivateData._uORB_Raw_QuaternionQ[0],
                                   PrivateData._uORB_Raw_QuaternionQ[1],
                                   PrivateData._uORB_Raw_QuaternionQ[2],
@@ -498,42 +502,39 @@ private:
             if (MPU9250_fd < 0)
                 throw -2;
 
-            MPU9250_SPI_Config[0] = 0x6b;
-            MPU9250_SPI_Config[1] = 0x80;
-            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // reset
+            char MPU9250_SPI_Config_RESET[2] = {0x6b, 0x80};
+            spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET, 2); // reset
             usleep(500);
-            MPU9250_SPI_Config[0] = 0x68;
-            MPU9250_SPI_Config[1] = 0x07;
-            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // BIT_GYRO | BIT_ACC | BIT_TEMP reset
+            char MPU9250_SPI_Config_RESET2[2] = {0x68, 0x07};
+            spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET2, 2); // BIT_GYRO | BIT_ACC | BIT_TEMP reset
             usleep(500);
-            MPU9250_SPI_Config[0] = 0x6b;
-            MPU9250_SPI_Config[1] = 0x00;
-            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // reset
+            char MPU9250_SPI_Config_RESET3[2] = {0x6b, 0x00};
+            spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET3, 2); // reset
             usleep(500);
-            MPU9250_SPI_Config[0] = 0x6b;
-            MPU9250_SPI_Config[1] = 0x01;
-            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // reset
-            usleep(500);
+            char MPU9250_SPI_Config_RESET4[2] = {0x6b, 0x01};
+            spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET4, 2); // reset
+            usleep(1000);
 
-            MPU9250_SPI_Config[0] = 0x1d;
-            MPU9250_SPI_Config[1] = 0x00;                                   // FChoice 1, DLPF 0 , dlpf cut off 460hz
-            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // Accel2
+            char MPU9250_SPI_Config_ALPF[2] = {0x1d, 0x00};   // FChoice 1, DLPF 0 , dlpf cut off 460hz
+            spiWrite(MPU9250_fd, MPU9250_SPI_Config_ALPF, 2); // Accel2
             usleep(15);
-            MPU9250_SPI_Config[0] = 0x1c;
-            MPU9250_SPI_Config[1] = 0x18;                                   // Full AccelScale +- 16g
-            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // Accel
+            char MPU9250_SPI_Config_Acce[2] = {0x1c, 0x18};   // Full AccelScale +- 16g
+            spiWrite(MPU9250_fd, MPU9250_SPI_Config_Acce, 2); // Accel
             usleep(15);
-            MPU9250_SPI_Config[0] = 0x1b;
-            MPU9250_SPI_Config[1] = 0x18;                                   // Full GyroScale +-2000dps, dlpf 250hz
-            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // Gryo
+            char MPU9250_SPI_Config_Gyro[2] = {0x1b, 0x18};   // Full GyroScale +-2000dps, dlpf 250hz
+            spiWrite(MPU9250_fd, MPU9250_SPI_Config_Gyro, 2); // Gryo
             usleep(15);
-            MPU9250_SPI_Config[0] = 0x1a;
-            MPU9250_SPI_Config[1] = 0x00;                                   // DLPF_CFG is 000 , with Gyro dlpf is 250hz
-            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // config
+            char MPU9250_SPI_Config_GLPF[2] = {0x1a, 0x00};   // DLPF_CFG is 000 , with Gyro dlpf is 250hz
+            spiWrite(MPU9250_fd, MPU9250_SPI_Config_GLPF, 2); // config
             usleep(15);
-            MPU9250_SPI_Config[0] = 0x19;
-            MPU9250_SPI_Config[1] = OutputSpeedCal;                         // 1khz / (1 + OutputSpeedCal) = 500hz; OutputSpeedCal is 2;
-            spiXfer(MPU9250_fd, MPU9250_SPI_Config, MPU9250_SPI_Config, 2); // DLPF's Sample rate's DIV , when > 250 hz lpf, not work
+            // char MPU9250_SPI_Config_SIMP[2] = {0x19, 0x04};   // 1khz / (1 + OutputSpeedCal) = 500hz; OutputSpeedCal is 2;
+            // spiWrite(MPU9250_fd, MPU9250_SPI_Config_SIMP, 2); // DLPF's Sample rate's DIV , when > 250 hz lpf, not work
+            // usleep(15);
+            char MPU9250_SPI_Config_INTC[2] = {0x37, 0x22};
+            spiWrite(MPU9250_fd, MPU9250_SPI_Config_INTC, 2);
+            usleep(500);
+            char MPU9250_SPI_Config_INTE[2] = {0x38, 0x01};
+            spiWrite(MPU9250_fd, MPU9250_SPI_Config_INTE, 2);
             usleep(500);
         }
         else if (PrivateConfig.MPUType == MPUTypeI2C)
@@ -577,19 +578,31 @@ private:
         }
         else if (PrivateConfig.MPUType == MPUTypeSPI)
         {
-            Tmp_MPU9250_SPI_Buffer[0] = 0xBB;
-            spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_Buffer, Tmp_MPU9250_SPI_Buffer, 15);
-            PrivateData._uORB_MPU9250_A_X = (short)((int)Tmp_MPU9250_SPI_Buffer[1] << 8 | (int)Tmp_MPU9250_SPI_Buffer[2]) * -1;
-            PrivateData._uORB_MPU9250_A_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[3] << 8 | (int)Tmp_MPU9250_SPI_Buffer[4]);
-            PrivateData._uORB_MPU9250_A_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[5] << 8 | (int)Tmp_MPU9250_SPI_Buffer[6]);
+            char Tmp_MPU9250_SPI_BufferX[2] = {0};
+            Tmp_MPU9250_SPI_BufferX[0] = 0xBA;
+            spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_BufferX, Tmp_MPU9250_SPI_BufferX, 3);
+            if (Tmp_MPU9250_SPI_BufferX[1] & 0x01)
+            {
+                PrivateData._uORB_MPU9250_IMUUpdateTime = GetTimestamp() - LastUpdate;
 
-            PrivateData._uORB_MPU9250_G_X = (short)((int)Tmp_MPU9250_SPI_Buffer[9] << 8 | (int)Tmp_MPU9250_SPI_Buffer[10]);
-            PrivateData._uORB_MPU9250_G_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[11] << 8 | (int)Tmp_MPU9250_SPI_Buffer[12]);
-            PrivateData._uORB_MPU9250_G_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[13] << 8 | (int)Tmp_MPU9250_SPI_Buffer[14]);
+                char Tmp_MPU9250_SPI_Buffer[20] = {0};
+                Tmp_MPU9250_SPI_Buffer[0] = 0xBB;
 
-            // PrivateData._uORB_MPU9250_M_X = (short)((int)Tmp_MPU9250_SPI_Buffer[16] << 8) | (int)Tmp_MPU9250_SPI_Buffer[15];
-            // PrivateData._uORB_MPU9250_M_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[18] << 8) | (int)Tmp_MPU9250_SPI_Buffer[17];
-            // PrivateData._uORB_MPU9250_M_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[20] << 8) | (int)Tmp_MPU9250_SPI_Buffer[19];
+                spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_Buffer, Tmp_MPU9250_SPI_Buffer, 15);
+                PrivateData._uORB_MPU9250_A_X = (short)((int)Tmp_MPU9250_SPI_Buffer[1] << 8 | (int)Tmp_MPU9250_SPI_Buffer[2]) * -1;
+                PrivateData._uORB_MPU9250_A_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[3] << 8 | (int)Tmp_MPU9250_SPI_Buffer[4]);
+                PrivateData._uORB_MPU9250_A_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[5] << 8 | (int)Tmp_MPU9250_SPI_Buffer[6]);
+
+                PrivateData._uORB_MPU9250_G_X = (short)((int)Tmp_MPU9250_SPI_Buffer[9] << 8 | (int)Tmp_MPU9250_SPI_Buffer[10]);
+                PrivateData._uORB_MPU9250_G_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[11] << 8 | (int)Tmp_MPU9250_SPI_Buffer[12]);
+                PrivateData._uORB_MPU9250_G_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[13] << 8 | (int)Tmp_MPU9250_SPI_Buffer[14]);
+
+                // PrivateData._uORB_MPU9250_M_X = (short)((int)Tmp_MPU9250_SPI_Buffer[16] << 8) | (int)Tmp_MPU9250_SPI_Buffer[15];
+                // PrivateData._uORB_MPU9250_M_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[18] << 8) | (int)Tmp_MPU9250_SPI_Buffer[17];
+                // PrivateData._uORB_MPU9250_M_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[20] << 8) | (int)Tmp_MPU9250_SPI_Buffer[19];
+
+                LastUpdate = GetTimestamp();
+            }
         }
     }
 
@@ -718,13 +731,19 @@ private:
         }
     };
 
+    inline int GetTimestamp()
+    {
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        return tv.tv_sec * (uint64_t)1000000 + tv.tv_usec;
+    }
+
     int MPU9250_fd;
     float MPU9250_Gryo_LSB = 16.4;    // +-2000dps
     float MPU9250_Accel_LSB = 2048.f; //+-16g
     int MPU9250_SPI_Freq = 10000000;
-    char MPU9250_SPI_Config[20] = {0};
     char Tmp_MPU9250_Buffer[20] = {0};
-    char Tmp_MPU9250_SPI_Buffer[20] = {0};
+    int LastUpdate = 0;
     MPUData PrivateData;
     MPUConfig PrivateConfig;
     std::unique_ptr<MadgwickAHRS> AHRSSys;

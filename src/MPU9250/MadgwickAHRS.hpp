@@ -195,6 +195,12 @@ public:
 		beta = betaConfig;
 	}
 
+	void MadgwickAHRSIMUApply(float gx, float gy, float gz, float ax, float ay, float az, float dt)
+	{
+		SampleRate = dt;
+		MadgwickAHRSupdateIMU(gx, gy, gz, ax, ay, az);
+	}
+
 	void MadgwickAHRSGetQ(float &Q0, float &Q1, float &Q2, float &Q3)
 	{
 		Q0 = q0;
@@ -219,6 +225,7 @@ public:
 	{
 		beta = _beta;
 	}
+
 private:
 	float beta = 0;
 	float betaConfig = 0;
