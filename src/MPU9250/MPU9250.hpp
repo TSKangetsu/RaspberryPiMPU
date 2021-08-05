@@ -148,6 +148,9 @@ class RPiMPU9250
 public:
     inline RPiMPU9250(MPUConfig mpuConfig)
     {
+        LastUpdate = GetTimestamp();
+        PrivateData._uORB_MPU9250_IMUUpdateTime = GetTimestamp();
+
         PrivateConfig = mpuConfig;
         GyroDynmiacNotchMinBox = (PrivateConfig.DynamicNotchMinFreq / FFTResolution) - 1;
         //Settings all Filter
