@@ -143,6 +143,7 @@ struct MPUData
 
     int _uORB_MPU9250_IMUUpdateTime = 0;
     int _uORB_MPU9250_AccelCountDown = 0;
+    int _uORB_MPU9250_CalibrationCountDown = 0;
 };
 
 class RPiMPU9250
@@ -272,6 +273,38 @@ public:
         PrivateData._flag_MPU9250_G_Z_Cali = _Tmp_Gryo_Z_Cali / IMU_CALI_MAX_LOOP;
         PrivateData._uORB_MPU9250_A_Static_Vector = _Tmp_Accel_Static_Cali / IMU_CALI_MAX_LOOP;
         return 0;
+    };
+
+    inline int MPUCalibrationOnline()
+    {
+        if (PrivateData._uORB_MPU9250_CalibrationCountDown == 0)
+        {
+            PrivateData._flag_MPU9250_G_X_Cali = 0;
+            PrivateData._flag_MPU9250_G_Y_Cali = 0;
+            PrivateData._flag_MPU9250_G_Z_Cali = 0;
+            PrivateData._uORB_MPU9250_A_Static_Vector = 1.0;
+            _Tmp_Gryo_X_Cali_ON = 0;
+            _Tmp_Gryo_Y_Cali_ON = 0;
+            _Tmp_Gryo_Z_Cali_ON = 0;
+            _Tmp_Accel_Static_Cali_ON = 0;
+        }
+
+        _Tmp_Gryo_X_Cali_ON += PrivateData._uORB_MPU9250_G_X;
+        _Tmp_Gryo_Y_Cali_ON += PrivateData._uORB_MPU9250_G_Y;
+        _Tmp_Gryo_Z_Cali_ON += PrivateData._uORB_MPU9250_G_Z;
+        _Tmp_Accel_Static_Cali_ON += PrivateData._uORB_MPU9250_A_Vector;
+
+        if (PrivateData._uORB_MPU9250_CalibrationCountDown >= IMU_CALI_MAX_LOOP)
+        {
+            PrivateData._flag_MPU9250_G_X_Cali = _Tmp_Gryo_X_Cali_ON / IMU_CALI_MAX_LOOP;
+            PrivateData._flag_MPU9250_G_Y_Cali = _Tmp_Gryo_Y_Cali_ON / IMU_CALI_MAX_LOOP;
+            PrivateData._flag_MPU9250_G_Z_Cali = _Tmp_Gryo_Z_Cali_ON / IMU_CALI_MAX_LOOP;
+            PrivateData._uORB_MPU9250_A_Static_Vector = _Tmp_Accel_Static_Cali_ON / IMU_CALI_MAX_LOOP;
+            PrivateData._uORB_MPU9250_CalibrationCountDown = 0;
+            return 0;
+        }
+        PrivateData._uORB_MPU9250_CalibrationCountDown++;
+        return 1;
     };
 
     // Calibration MPU Accel Sensor , See TestMoodule.cpp
@@ -762,6 +795,11 @@ private:
     MPUData PrivateData;
     MPUConfig PrivateConfig;
     std::unique_ptr<MadgwickAHRS> AHRSSys;
+    //
+    double _Tmp_Gryo_X_Cali_ON = 0;
+    double _Tmp_Gryo_Y_Cali_ON = 0;
+    double _Tmp_Gryo_Z_Cali_ON = 0;
+    double _Tmp_Accel_Static_Cali_ON = 0;
     //CleanFlight Filter
     pt1Filter_t VibeLPF[3];
     pt1Filter_t VibeFloorLPF[3];
