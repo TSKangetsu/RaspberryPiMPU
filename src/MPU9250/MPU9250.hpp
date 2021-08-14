@@ -39,7 +39,6 @@
 #define GravityAccel 9.80665
 #define MPU_250HZ_LPF_SPEED 8000.f
 #define MPU_LOWHZ_LPF_SPEED 1000.f
-#define MPU_ACCEL_UPDATE_HZ 250
 
 #define DYNAMIC_NOTCH_DEFAULT_CENTER_HZ 350.f
 #define DYN_NOTCH_SMOOTH_FREQ_HZ 30.f
@@ -79,6 +78,7 @@ struct MPUConfig
     float DynamicNotchMinFreq = 62.5;
     bool DynamicNotchEnable = true;
     //
+    int AccTargetFreqency = 1000;
     int AccelFilterType = FilterLPFBiquad;
     int AccelFilterCutOff = 30;
 };
@@ -159,7 +159,7 @@ public:
         //Settings all Filter
         {
             int DT = (float)(1.f / (float)PrivateConfig.TargetFreqency) * 1000000;
-            int ACCDT = (float)(1.f / (float)MPU_ACCEL_UPDATE_HZ) * 1000000;
+            int ACCDT = (float)(1.f / (float)PrivateConfig.AccTargetFreqency) * 1000000;
             switch (PrivateConfig.GyroFilterType)
             {
             case FilterLPFPT1:
@@ -459,18 +459,27 @@ public:
             PrivateData._uORB_Accel_VIBE_X = pt1FilterApply(&VibeLPF[AAXN], (pow((((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB) - AccVibeFloorX), 2)));
             PrivateData._uORB_Accel_VIBE_Y = pt1FilterApply(&VibeLPF[AAYN], (pow((((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB) - AccVibeFloorY), 2)));
             PrivateData._uORB_Accel_VIBE_Z = pt1FilterApply(&VibeLPF[AAZN], (pow((((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB) - AccVibeFloorZ), 2)));
-            switch (PrivateConfig.AccelFilterType)
+            if (PrivateConfig.AccelFilterCutOff)
             {
-            case FilterLPFPT1:
-                PrivateData._uORB_MPU9250_ADF_X = pt1FilterApply(&AccelFilterLPF[AAXN], ((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
-                PrivateData._uORB_MPU9250_ADF_Y = pt1FilterApply(&AccelFilterLPF[AAYN], ((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
-                PrivateData._uORB_MPU9250_ADF_Z = pt1FilterApply(&AccelFilterLPF[AAZN], ((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
-                break;
-            case FilterLPFBiquad:
-                PrivateData._uORB_MPU9250_ADF_X = biquadFilterApply(&AccelFilterBLPF[AAXN], ((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
-                PrivateData._uORB_MPU9250_ADF_Y = biquadFilterApply(&AccelFilterBLPF[AAYN], ((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
-                PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelFilterBLPF[AAZN], ((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
-                break;
+                switch (PrivateConfig.AccelFilterType)
+                {
+                case FilterLPFPT1:
+                    PrivateData._uORB_MPU9250_ADF_X = pt1FilterApply(&AccelFilterLPF[AAXN], ((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
+                    PrivateData._uORB_MPU9250_ADF_Y = pt1FilterApply(&AccelFilterLPF[AAYN], ((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
+                    PrivateData._uORB_MPU9250_ADF_Z = pt1FilterApply(&AccelFilterLPF[AAZN], ((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
+                    break;
+                case FilterLPFBiquad:
+                    PrivateData._uORB_MPU9250_ADF_X = biquadFilterApply(&AccelFilterBLPF[AAXN], ((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
+                    PrivateData._uORB_MPU9250_ADF_Y = biquadFilterApply(&AccelFilterBLPF[AAYN], ((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
+                    PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelFilterBLPF[AAZN], ((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
+                    break;
+                }
+            }
+            else
+            {
+                PrivateData._uORB_MPU9250_ADF_X = PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB;
+                PrivateData._uORB_MPU9250_ADF_Y = PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB;
+                PrivateData._uORB_MPU9250_ADF_Z = PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB;
             }
             PrivateData._uORB_MPU9250_A_Vector = sqrtf((PrivateData._uORB_MPU9250_ADF_X * PrivateData._uORB_MPU9250_ADF_X) +
                                                        (PrivateData._uORB_MPU9250_ADF_Y * PrivateData._uORB_MPU9250_ADF_Y) +
@@ -562,7 +571,7 @@ private:
             spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET4, 2); // reset
             usleep(1000);
 
-            char MPU9250_SPI_Config_ALPF[2] = {0x1d, 0x00};   // FChoice 1, DLPF 0 , dlpf cut off 460hz
+            char MPU9250_SPI_Config_ALPF[2] = {0x1d, 0x03};   // FChoice 1, DLPF 3 , dlpf cut off 44.8hz for accel
             spiWrite(MPU9250_fd, MPU9250_SPI_Config_ALPF, 2); // Accel2
             usleep(15);
             char MPU9250_SPI_Config_Acce[2] = {0x1c, 0x18};   // Full AccelScale +- 16g
@@ -633,7 +642,7 @@ private:
                 PrivateData._uORB_MPU9250_IMUUpdateTime = GetTimestamp() - LastUpdate;
                 char Tmp_MPU9250_SPI_Buffer[8] = {0};
                 Tmp_MPU9250_SPI_Buffer[0] = 0xBB;
-                if (PrivateData._uORB_MPU9250_AccelCountDown >= (PrivateConfig.TargetFreqency / MPU_ACCEL_UPDATE_HZ))
+                if (PrivateData._uORB_MPU9250_AccelCountDown >= (PrivateConfig.TargetFreqency / PrivateConfig.AccTargetFreqency))
                 {
                     spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_Buffer, Tmp_MPU9250_SPI_Buffer, 8);
                     PrivateData._uORB_MPU9250_A_X = (short)((int)Tmp_MPU9250_SPI_Buffer[1] << 8 | (int)Tmp_MPU9250_SPI_Buffer[2]) * -1;
