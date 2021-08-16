@@ -46,6 +46,7 @@
 #define ACC_VIBE_FILT_HZ 2.f
 #define IMU_CALI_MAX_LOOP 500.0
 #define MAX_ACC_NEARNESS 0.33 // 33% or G error soft-accepted (0.67-1.33G)
+#define ACC_CLIPPING_THRESHOLD_G 7.9f
 #define M_Ef 2.71828182845904523536f
 
 #define GAXP 0
@@ -98,6 +99,7 @@ struct MPUData
     float _uORB_MPU9250_ADF_X = 0;
     float _uORB_MPU9250_ADF_Y = 0;
     float _uORB_MPU9250_ADF_Z = 0;
+    bool _uORB_MPU9250_ACC_Clipped = false;
 
     float _uORB_MPU9250_A_Static_X = 0;
     float _uORB_MPU9250_A_Static_Y = 0;
@@ -459,6 +461,7 @@ public:
             PrivateData._uORB_Accel_VIBE_X = pt1FilterApply(&VibeLPF[AAXN], (pow((((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB) - AccVibeFloorX), 2)));
             PrivateData._uORB_Accel_VIBE_Y = pt1FilterApply(&VibeLPF[AAYN], (pow((((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB) - AccVibeFloorY), 2)));
             PrivateData._uORB_Accel_VIBE_Z = pt1FilterApply(&VibeLPF[AAZN], (pow((((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB) - AccVibeFloorZ), 2)));
+            //
             if (PrivateConfig.AccelFilterCutOff)
             {
                 switch (PrivateConfig.AccelFilterType)
@@ -481,6 +484,14 @@ public:
                 PrivateData._uORB_MPU9250_ADF_Y = PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB;
                 PrivateData._uORB_MPU9250_ADF_Z = PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB;
             }
+            //
+            if (abs(PrivateData._uORB_MPU9250_ADF_X) > ACC_CLIPPING_THRESHOLD_G ||
+                abs(PrivateData._uORB_MPU9250_ADF_Y) > ACC_CLIPPING_THRESHOLD_G ||
+                abs(PrivateData._uORB_MPU9250_ADF_Z) > ACC_CLIPPING_THRESHOLD_G)
+                PrivateData._uORB_MPU9250_ACC_Clipped = true;
+            else
+                PrivateData._uORB_MPU9250_ACC_Clipped = false;
+            //
             PrivateData._uORB_MPU9250_A_Vector = sqrtf((PrivateData._uORB_MPU9250_ADF_X * PrivateData._uORB_MPU9250_ADF_X) +
                                                        (PrivateData._uORB_MPU9250_ADF_Y * PrivateData._uORB_MPU9250_ADF_Y) +
                                                        (PrivateData._uORB_MPU9250_ADF_Z * PrivateData._uORB_MPU9250_ADF_Z));
