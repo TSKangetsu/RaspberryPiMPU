@@ -5,6 +5,7 @@
 #include <wiringPiI2C.h>
 #include <pigpio.h>
 #include <sys/time.h>
+#include <signal.h>
 
 #include "filter.h"
 #include "FFTPlugin.hpp"
@@ -555,6 +556,7 @@ public:
     {
         AHRSSys.reset();
         spiClose(MPU9250_fd);
+        gpioTerminate();
     };
 
 private:
@@ -565,6 +567,21 @@ private:
         {
             if (gpioInitialise() < 0)
                 throw -1;
+#ifdef SELF_SIG_MANAGE
+            {
+                int i;
+                struct sigaction newF;
+
+                for (i = PI_MIN_SIGNUM; i <= PI_MAX_SIGNUM; i++)
+                {
+
+                    memset(&newF, 0, sizeof(newF));
+                    newF.sa_handler = NULL;
+
+                    sigaction(i, &newF, NULL);
+                }
+            }
+#endif
             MPU9250_fd = spiOpen(1, MPU9250_SPI_Freq, 0);
             if (MPU9250_fd < 0)
                 throw -2;
