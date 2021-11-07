@@ -1,3 +1,4 @@
+#pragma once
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -9,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
 
-inline int spiOpen(unsigned spiChan, unsigned spiBaud, unsigned spiFlags)
+inline int spiOpen(const char *Device, int spiBaud, int spiFlags)
 {
     int i, fd;
     char spiMode;
@@ -19,8 +20,7 @@ inline int spiOpen(unsigned spiChan, unsigned spiBaud, unsigned spiFlags)
     spiMode = spiFlags & 3;
     spiBits = 8;
 
-    sprintf(dev, "/dev/spidev0.%d", spiChan);
-    if ((fd = open(dev, O_RDWR)) < 0)
+    if ((fd = open(Device, O_RDWR)) < 0)
     {
         return -1;
     }
@@ -46,20 +46,15 @@ inline int spiOpen(unsigned spiChan, unsigned spiBaud, unsigned spiFlags)
     return fd;
 }
 
-inline int spiClose(int fd)
-{
-    return close(fd);
-}
-
-inline int spiRead(int fd, unsigned speed, char *buf, unsigned count)
+inline int spiRead(int fd, void *buffer, int speed, int count)
 {
     int err;
     struct spi_ioc_transfer spi;
 
     memset(&spi, 0, sizeof(spi));
 
-    spi.tx_buf = (unsigned)NULL;
-    spi.rx_buf = (unsigned)buf;
+    spi.tx_buf = (unsigned long)NULL;
+    spi.rx_buf = (unsigned long)buffer;
     spi.len = count;
     spi.speed_hz = speed;
     spi.delay_usecs = 0;
@@ -71,15 +66,15 @@ inline int spiRead(int fd, unsigned speed, char *buf, unsigned count)
     return err;
 }
 
-inline int spiWrite(int fd, unsigned speed, char *buf, unsigned count)
+inline int spiWrite(int fd, void *buffer, int speed, int count)
 {
     int err;
     struct spi_ioc_transfer spi;
 
     memset(&spi, 0, sizeof(spi));
 
-    spi.tx_buf = (unsigned)buf;
-    spi.rx_buf = (unsigned)NULL;
+    spi.tx_buf = (unsigned long)buffer;
+    spi.rx_buf = (unsigned long)NULL;
     spi.len = count;
     spi.speed_hz = speed;
     spi.delay_usecs = 0;
@@ -91,7 +86,7 @@ inline int spiWrite(int fd, unsigned speed, char *buf, unsigned count)
     return err;
 }
 
-inline int spiXfer(int fd, unsigned speed, char *txBuf, char *rxBuf, unsigned count)
+inline int spiXfer(int fd, char *txBuf, char *rxBuf, int speed, int count)
 {
     int err;
     struct spi_ioc_transfer spi;
@@ -109,4 +104,9 @@ inline int spiXfer(int fd, unsigned speed, char *txBuf, char *rxBuf, unsigned co
     err = ioctl(fd, SPI_IOC_MESSAGE(1), &spi);
 
     return err;
+}
+
+inline int spiClose(int fd)
+{
+    return close(fd);
 }
