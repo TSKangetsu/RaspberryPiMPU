@@ -565,7 +565,7 @@ public:
     inline ~RPiMPU9250()
     {
         AHRSSys.reset();
-        spiClose(MPU9250_fd);
+        _s_spiClose(MPU9250_fd);
     };
 
 private:
@@ -574,47 +574,47 @@ private:
         double OutputSpeedCal = (MPU_250HZ_LPF_SPEED / (float)PrivateConfig.TargetFreqency) - 1.f;
         if (PrivateConfig.MPUType == MPUTypeSPI)
         {
-            MPU9250_fd = spiOpen(PrivateConfig.MPUSPIChannel, PrivateConfig.MPU9250_SPI_Freq, 0);
+            MPU9250_fd = _s_spiOpen(PrivateConfig.MPUSPIChannel, PrivateConfig.MPU9250_SPI_Freq, 0);
             if (MPU9250_fd < 0)
                 throw -2;
 
             char MPU9250_SPI_Config_WHOAMI[2] = {0xf5, 0x00};
-            spiXfer(MPU9250_fd, MPU9250_SPI_Config_WHOAMI, MPU9250_SPI_Config_WHOAMI, PrivateConfig.MPU9250_SPI_Freq, 2);
+            _s_spiXfer(MPU9250_fd, MPU9250_SPI_Config_WHOAMI, MPU9250_SPI_Config_WHOAMI, PrivateConfig.MPU9250_SPI_Freq, 2);
             PrivateData.DeviceType = MPU9250_SPI_Config_WHOAMI[1];
 
             char MPU9250_SPI_Config_RESET[2] = {0x6b, 0x80};
-            spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET, PrivateConfig.MPU9250_SPI_Freq, 2); // reset
+            _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET, PrivateConfig.MPU9250_SPI_Freq, 2); // reset
             usleep(500);
             char MPU9250_SPI_Config_RESET2[2] = {0x68, 0x07};
-            spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET2, PrivateConfig.MPU9250_SPI_Freq, 2); // BIT_GYRO | BIT_ACC | BIT_TEMP reset
+            _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET2, PrivateConfig.MPU9250_SPI_Freq, 2); // BIT_GYRO | BIT_ACC | BIT_TEMP reset
             usleep(500);
             char MPU9250_SPI_Config_RESET3[2] = {0x6b, 0x00};
-            spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET3, PrivateConfig.MPU9250_SPI_Freq, 2); // reset
+            _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET3, PrivateConfig.MPU9250_SPI_Freq, 2); // reset
             usleep(500);
             char MPU9250_SPI_Config_RESET4[2] = {0x6b, 0x01};
-            spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET4, PrivateConfig.MPU9250_SPI_Freq, 2); // reset
+            _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET4, PrivateConfig.MPU9250_SPI_Freq, 2); // reset
             usleep(1000);
 
             char MPU9250_SPI_Config_ALPF[2] = {0x1d, 0x03};                                   // FChoice 1, DLPF 3 , dlpf cut off 44.8hz for accel
-            spiWrite(MPU9250_fd, MPU9250_SPI_Config_ALPF, PrivateConfig.MPU9250_SPI_Freq, 2); // Accel2
+            _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_ALPF, PrivateConfig.MPU9250_SPI_Freq, 2); // Accel2
             usleep(15);
             char MPU9250_SPI_Config_Acce[2] = {0x1c, 0x18};                                   // Full AccelScale +- 16g
-            spiWrite(MPU9250_fd, MPU9250_SPI_Config_Acce, PrivateConfig.MPU9250_SPI_Freq, 2); // Accel
+            _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_Acce, PrivateConfig.MPU9250_SPI_Freq, 2); // Accel
             usleep(15);
             char MPU9250_SPI_Config_Gyro[2] = {0x1b, 0x18};                                   // Full GyroScale +-2000dps, dlpf 250hz
-            spiWrite(MPU9250_fd, MPU9250_SPI_Config_Gyro, PrivateConfig.MPU9250_SPI_Freq, 2); // Gryo
+            _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_Gyro, PrivateConfig.MPU9250_SPI_Freq, 2); // Gryo
             usleep(15);
             char MPU9250_SPI_Config_GLPF[2] = {0x1a, 0x00};                                   // DLPF_CFG is 000 , with Gyro dlpf is 250hz
-            spiWrite(MPU9250_fd, MPU9250_SPI_Config_GLPF, PrivateConfig.MPU9250_SPI_Freq, 2); // config
+            _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_GLPF, PrivateConfig.MPU9250_SPI_Freq, 2); // config
             usleep(15);
             // char MPU9250_SPI_Config_SIMP[2] = {0x19, 0x04};   // 1khz / (1 + OutputSpeedCal) = 500hz; OutputSpeedCal is 2;
-            // spiWrite(MPU9250_fd, MPU9250_SPI_Config_SIMP, 2); // DLPF's Sample rate's DIV , when > 250 hz lpf, not work
+            // _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_SIMP, 2); // DLPF's Sample rate's DIV , when > 250 hz lpf, not work
             // usleep(15);
             char MPU9250_SPI_Config_INTC[2] = {0x37, 0x22};
-            spiWrite(MPU9250_fd, MPU9250_SPI_Config_INTC, PrivateConfig.MPU9250_SPI_Freq, 2);
+            _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_INTC, PrivateConfig.MPU9250_SPI_Freq, 2);
             usleep(500);
             char MPU9250_SPI_Config_INTE[2] = {0x38, 0x01};
-            spiWrite(MPU9250_fd, MPU9250_SPI_Config_INTE, PrivateConfig.MPU9250_SPI_Freq, 2);
+            _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_INTE, PrivateConfig.MPU9250_SPI_Freq, 2);
             usleep(500);
         }
         else if (PrivateConfig.MPUType == MPUTypeI2C)
@@ -632,7 +632,7 @@ private:
         {
             char Tmp_MPU9250_SPI_BufferX[2] = {0};
             Tmp_MPU9250_SPI_BufferX[0] = 0xBA;
-            spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_BufferX, Tmp_MPU9250_SPI_BufferX, PrivateConfig.MPU9250_SPI_Freq, 2);
+            _s_spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_BufferX, Tmp_MPU9250_SPI_BufferX, PrivateConfig.MPU9250_SPI_Freq, 2);
             if (Tmp_MPU9250_SPI_BufferX[1] & 0x01)
             {
                 PrivateData._uORB_MPU9250_IMUUpdateTime = GetTimestamp() - LastUpdate;
@@ -642,7 +642,7 @@ private:
                 Tmp_MPU9250_SPI_Buffer[0] = 0xBB;
                 if (PrivateData._uORB_MPU9250_AccelCountDown >= (PrivateConfig.TargetFreqency / PrivateConfig.AccTargetFreqency))
                 {
-                    spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_Buffer, Tmp_MPU9250_SPI_Buffer, PrivateConfig.MPU9250_SPI_Freq, 8);
+                    _s_spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_Buffer, Tmp_MPU9250_SPI_Buffer, PrivateConfig.MPU9250_SPI_Freq, 8);
                     PrivateData._uORB_MPU9250_A_X = (short)((int)Tmp_MPU9250_SPI_Buffer[1] << 8 | (int)Tmp_MPU9250_SPI_Buffer[2]) * -1;
                     PrivateData._uORB_MPU9250_A_Y = (short)((int)Tmp_MPU9250_SPI_Buffer[3] << 8 | (int)Tmp_MPU9250_SPI_Buffer[4]);
                     PrivateData._uORB_MPU9250_A_Z = (short)((int)Tmp_MPU9250_SPI_Buffer[5] << 8 | (int)Tmp_MPU9250_SPI_Buffer[6]);
@@ -652,7 +652,7 @@ private:
 
                 char Tmp_MPU9250_SPI_GBuffer[8] = {0};
                 Tmp_MPU9250_SPI_GBuffer[0] = 0xC3;
-                spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_GBuffer, Tmp_MPU9250_SPI_GBuffer, PrivateConfig.MPU9250_SPI_Freq, 8);
+                _s_spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_GBuffer, Tmp_MPU9250_SPI_GBuffer, PrivateConfig.MPU9250_SPI_Freq, 8);
                 PrivateData._uORB_MPU9250_G_X = (short)((int)Tmp_MPU9250_SPI_GBuffer[1] << 8 | (int)Tmp_MPU9250_SPI_GBuffer[2]);
                 PrivateData._uORB_MPU9250_G_Y = (short)((int)Tmp_MPU9250_SPI_GBuffer[3] << 8 | (int)Tmp_MPU9250_SPI_GBuffer[4]);
                 PrivateData._uORB_MPU9250_G_Z = (short)((int)Tmp_MPU9250_SPI_GBuffer[5] << 8 | (int)Tmp_MPU9250_SPI_GBuffer[6]);

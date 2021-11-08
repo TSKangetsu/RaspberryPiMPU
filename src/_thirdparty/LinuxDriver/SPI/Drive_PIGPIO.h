@@ -1,26 +1,29 @@
 #pragma once
+#include <pigpio.h>
+#include<stdlib.h>
 
-inline int spiOpen(int spiChan,int  spiBaud, int  spiFlags)
+inline int _s_spiOpen(const char *spiChan, int spiBaud, int spiFlags)
 {
-    return -1;
+    gpioInitialise();
+    return spiOpen(atoi(spiChan), spiBaud, spiFlags);
 }
 
-inline int spiClose(int fd)
+inline int _s_spiClose(int fd)
 {
-    return -1;
+    return spiClose(fd);
 }
 
-inline int spiRead(int fd, void *buffer, int count)
+inline int _s_spiRead(int fd, void *buffer, int speed, int count)
 {
-    return -1;
+    return spiRead(fd, (char *)buffer, count);
 }
 
-inline int spiWrite(int fd, void *buffer, int  count)
+inline int _s_spiWrite(int fd, void *buffer, int speed, int count)
 {
-    return -1;
+    return spiWrite(fd, (char *)buffer, count);
 }
 
-inline int spiXfer(int fd, void *txBuf, void *rxBuf, int  count)
+inline int _s_spiXfer(int fd, void *txBuf, void *rxBuf, int speed, int count)
 {
-    return -1;
+    return spiXfer(fd, (char *)txBuf, (char *)rxBuf, count);
 }

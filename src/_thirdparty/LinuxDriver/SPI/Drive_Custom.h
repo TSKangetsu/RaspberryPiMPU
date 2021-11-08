@@ -1,26 +1,26 @@
 #pragma once
 
-inline int spiOpen(int spiChan,int  spiBaud, int  spiFlags)
+inline int _s_spiOpen(int spiChan, int spiBaud, int spiFlags)
 {
     return -1;
 }
 
-inline int spiClose(int fd)
+inline int _s_spiClose(int fd)
 {
     return -1;
 }
 
-inline int spiRead(int fd, void *buffer, int count)
+inline int _s_spiRead(int fd, void *buffer, int speed, int count)
 {
     return -1;
 }
 
-inline int spiWrite(int fd, void *buffer, int  count)
+inline int _s_spiWrite(int fd, void *buffer, int speed, int count)
 {
     return -1;
 }
 
-inline int spiXfer(int fd, void *txBuf, void *rxBuf, int  count)
+inline int _s_spiXfer(int fd, void *txBuf, void *rxBuf, int speed, int count)
 {
     return -1;
 }

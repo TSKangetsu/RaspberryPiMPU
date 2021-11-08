@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
 
-inline int spiOpen(const char *Device, int spiBaud, int spiFlags)
+inline int _s_spiOpen(const char *Device, int spiBaud, int spiFlags)
 {
     int i, fd;
     char spiMode;
@@ -46,7 +46,7 @@ inline int spiOpen(const char *Device, int spiBaud, int spiFlags)
     return fd;
 }
 
-inline int spiRead(int fd, void *buffer, int speed, int count)
+inline int _s_spiRead(int fd, void *buffer, int speed, int count)
 {
     int err;
     struct spi_ioc_transfer spi;
@@ -66,7 +66,7 @@ inline int spiRead(int fd, void *buffer, int speed, int count)
     return err;
 }
 
-inline int spiWrite(int fd, void *buffer, int speed, int count)
+inline int _s_spiWrite(int fd, void *buffer, int speed, int count)
 {
     int err;
     struct spi_ioc_transfer spi;
@@ -86,7 +86,7 @@ inline int spiWrite(int fd, void *buffer, int speed, int count)
     return err;
 }
 
-inline int spiXfer(int fd, char *txBuf, char *rxBuf, int speed, int count)
+inline int _s_spiXfer(int fd, char *txBuf, char *rxBuf, int speed, int count)
 {
     int err;
     struct spi_ioc_transfer spi;
@@ -106,7 +106,7 @@ inline int spiXfer(int fd, char *txBuf, char *rxBuf, int speed, int count)
     return err;
 }
 
-inline int spiClose(int fd)
+inline int _s_spiClose(int fd)
 {
     return close(fd);
 }
