@@ -20,6 +20,9 @@
 #include "../_thirdparty/LinuxDriver/SPI/Drive_LinuxSPI.h"
 #endif
 
+#define MPU9250_ACCEL_LSB 2048.f
+#define MPU9250_GYRO_LSB 16.4
+
 #define MPUTypeI2C 0
 #define MPUTypeSPI 1
 #define MPUMixKalman 1
@@ -576,7 +579,7 @@ private:
         {
             MPU9250_fd = _s_spiOpen(PrivateConfig.MPUSPIChannel, PrivateConfig.MPU9250_SPI_Freq, 0);
             if (MPU9250_fd < 0)
-                throw -2;
+                throw - 2;
 
             char MPU9250_SPI_Config_WHOAMI[2] = {0xf5, 0x00};
             _s_spiXfer(MPU9250_fd, MPU9250_SPI_Config_WHOAMI, MPU9250_SPI_Config_WHOAMI, PrivateConfig.MPU9250_SPI_Freq, 2);
@@ -595,16 +598,16 @@ private:
             _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET4, PrivateConfig.MPU9250_SPI_Freq, 2); // reset
             usleep(1000);
 
-            char MPU9250_SPI_Config_ALPF[2] = {0x1d, 0x03};                                   // FChoice 1, DLPF 3 , dlpf cut off 44.8hz for accel
+            char MPU9250_SPI_Config_ALPF[2] = {0x1d, 0x03};                                      // FChoice 1, DLPF 3 , dlpf cut off 44.8hz for accel
             _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_ALPF, PrivateConfig.MPU9250_SPI_Freq, 2); // Accel2
             usleep(15);
-            char MPU9250_SPI_Config_Acce[2] = {0x1c, 0x18};                                   // Full AccelScale +- 16g
+            char MPU9250_SPI_Config_Acce[2] = {0x1c, 0x18};                                      // Full AccelScale +- 16g
             _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_Acce, PrivateConfig.MPU9250_SPI_Freq, 2); // Accel
             usleep(15);
-            char MPU9250_SPI_Config_Gyro[2] = {0x1b, 0x18};                                   // Full GyroScale +-2000dps, dlpf 250hz
+            char MPU9250_SPI_Config_Gyro[2] = {0x1b, 0x18};                                      // Full GyroScale +-2000dps, dlpf 250hz
             _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_Gyro, PrivateConfig.MPU9250_SPI_Freq, 2); // Gryo
             usleep(15);
-            char MPU9250_SPI_Config_GLPF[2] = {0x1a, 0x00};                                   // DLPF_CFG is 000 , with Gyro dlpf is 250hz
+            char MPU9250_SPI_Config_GLPF[2] = {0x1a, 0x00};                                      // DLPF_CFG is 000 , with Gyro dlpf is 250hz
             _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_GLPF, PrivateConfig.MPU9250_SPI_Freq, 2); // config
             usleep(15);
             // char MPU9250_SPI_Config_SIMP[2] = {0x19, 0x04};   // 1khz / (1 + OutputSpeedCal) = 500hz; OutputSpeedCal is 2;
@@ -637,7 +640,7 @@ private:
             {
                 PrivateData._uORB_MPU9250_IMUUpdateTime = GetTimestamp() - LastUpdate;
                 LastUpdate = GetTimestamp();
-                
+
                 char Tmp_MPU9250_SPI_Buffer[8] = {0};
                 Tmp_MPU9250_SPI_Buffer[0] = 0xBB;
                 if (PrivateData._uORB_MPU9250_AccelCountDown >= (PrivateConfig.TargetFreqency / PrivateConfig.AccTargetFreqency))
@@ -793,8 +796,8 @@ private:
     }
 
     int MPU9250_fd;
-    float MPU9250_Gryo_LSB = 16.4;    // +-2000dps
-    float MPU9250_Accel_LSB = 2048.f; //+-16g
+    float MPU9250_Gryo_LSB = MPU9250_GYRO_LSB;   // +-2000dps
+    float MPU9250_Accel_LSB = MPU9250_ACCEL_LSB; //+-16g
     char Tmp_MPU9250_Buffer[20] = {0};
     int LastUpdate = 0;
     MPUData PrivateData;
