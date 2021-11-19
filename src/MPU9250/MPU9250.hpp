@@ -371,6 +371,14 @@ public:
         }
     }
 
+    inline void MPUSensorApplyAHRS(int mx, int my, int mz, bool enabled, float correction)
+    {
+        _Tmp_AHRS_MAG_X = mx;
+        _Tmp_AHRS_MAG_Y = my;
+        _Tmp_AHRS_MAG_Z = mz;
+        YawCorrection = correction;
+        AHRSEnable = enabled;
+    };
     // Get MPU Data, If you want a Vibration Insensitive data , you need a Stable Loop
     // See TestModule.cpp
     inline MPUData MPUSensorsDataGet()
@@ -519,20 +527,38 @@ public:
         else
             PrivateData.MPUMixTraditionBeta = 0.f;
 
-        AHRSSys->MadgwickAHRSIMUApply(PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo___Yaw,
-                                      (-1.f * PrivateData._uORB_MPU9250_ADF_X),
-                                      (PrivateData._uORB_MPU9250_ADF_Y),
-                                      (PrivateData._uORB_MPU9250_ADF_Z),
-                                      ((float)PrivateData._uORB_MPU9250_IMUUpdateTime * 1e-6f));
+        if (!AHRSEnable)
+            AHRSSys->MadgwickAHRSIMUApply(PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo___Yaw,
+                                          (-1.f * PrivateData._uORB_MPU9250_ADF_X),
+                                          (PrivateData._uORB_MPU9250_ADF_Y),
+                                          (PrivateData._uORB_MPU9250_ADF_Z),
+                                          ((float)PrivateData._uORB_MPU9250_IMUUpdateTime * 1e-6f));
+        else
+            AHRSSys->MadgwickAHRSApply(PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo___Yaw,
+                                       (-1.f * PrivateData._uORB_MPU9250_ADF_X),
+                                       (PrivateData._uORB_MPU9250_ADF_Y),
+                                       (PrivateData._uORB_MPU9250_ADF_Z),
+                                       (_Tmp_AHRS_MAG_X),
+                                       (_Tmp_AHRS_MAG_Y),
+                                       (_Tmp_AHRS_MAG_Z),
+                                       ((float)PrivateData._uORB_MPU9250_IMUUpdateTime * 1e-6f));
+
         AHRSSys->MadgwickSetAccelWeight(PrivateData.MPUMixTraditionBeta);
         AHRSSys->MadgwickAHRSGetQ(PrivateData._uORB_Raw_QuaternionQ[0],
                                   PrivateData._uORB_Raw_QuaternionQ[1],
                                   PrivateData._uORB_Raw_QuaternionQ[2],
                                   PrivateData._uORB_Raw_QuaternionQ[3]);
         AHRSSys->MadgwickComputeAngles(PrivateData._uORB_Real_Pitch, PrivateData._uORB_Real__Roll, PrivateData._uORB_Real___Yaw);
+
         PrivateData._uORB_Real__Roll *= 180.f / PI;
         PrivateData._uORB_Real_Pitch *= 180.f / PI;
         PrivateData._uORB_Real___Yaw *= 180.f / PI;
+        PrivateData._uORB_Real___Yaw += YawCorrection;
+        if (PrivateData._uORB_Real___Yaw < 0)
+            PrivateData._uORB_Real___Yaw += 360;
+        else if (PrivateData._uORB_Real___Yaw >= 360)
+            PrivateData._uORB_Real___Yaw -= 360;
+
         PrivateData._uORB_Real__Roll += PrivateData._flag_MPU9250_A_TR_Cali;
         PrivateData._uORB_Real_Pitch += PrivateData._flag_MPU9250_A_TP_Cali;
         //========================= //=========================Navigation update
@@ -799,11 +825,16 @@ private:
     float MPU9250_Gryo_LSB = MPU9250_GYRO_LSB;   // +-2000dps
     float MPU9250_Accel_LSB = MPU9250_ACCEL_LSB; //+-16g
     char Tmp_MPU9250_Buffer[20] = {0};
+    bool AHRSEnable = false;
+    float YawCorrection = 0.f;
     int LastUpdate = 0;
     MPUData PrivateData;
     MPUConfig PrivateConfig;
     std::unique_ptr<MadgwickAHRS> AHRSSys;
     //
+    int _Tmp_AHRS_MAG_X = 0;
+    int _Tmp_AHRS_MAG_Y = 0;
+    int _Tmp_AHRS_MAG_Z = 0;
     double _Tmp_Gryo_X_Cali_ON = 0;
     double _Tmp_Gryo_Y_Cali_ON = 0;
     double _Tmp_Gryo_Z_Cali_ON = 0;

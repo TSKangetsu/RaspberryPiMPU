@@ -201,6 +201,12 @@ public:
 		MadgwickAHRSupdateIMU(gx, gy, gz, ax, ay, az);
 	}
 
+	void MadgwickAHRSApply(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz, float dt)
+	{
+		SampleRate = dt;
+		MadgwickAHRSupdate(gx, gy, gz, ax, ay, az, mx, my, mz);
+	}
+
 	void MadgwickAHRSGetQ(float &Q0, float &Q1, float &Q2, float &Q3)
 	{
 		Q0 = q0;
