@@ -168,8 +168,8 @@ public:
     inline RPiMPU9250(MPUConfig mpuConfig)
     {
         struct timeval tv;
-		gettimeofday(&tv, NULL);
-		IMUstartuptime = (tv.tv_sec * (uint64_t)1000000 + tv.tv_usec);
+        gettimeofday(&tv, NULL);
+        IMUstartuptime = (tv.tv_sec * (uint64_t)1000000 + tv.tv_usec);
 
         LastUpdate = GetTimestamp();
         PrivateData._uORB_MPU9250_IMUUpdateTime = GetTimestamp();
@@ -532,15 +532,15 @@ public:
             PrivateData.MPUMixTraditionBeta = 0.f;
 
         if (!AHRSEnable)
-            AHRSSys->MadgwickAHRSIMUApply(PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo___Yaw,
+            AHRSSys->MadgwickAHRSIMUApply(-1.f * PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo__Roll, -1.f * PrivateData._uORB_Gryo___Yaw,
                                           (-1.f * PrivateData._uORB_MPU9250_ADF_X),
-                                          (PrivateData._uORB_MPU9250_ADF_Y),
+                                          (-1.f * PrivateData._uORB_MPU9250_ADF_Y),
                                           (PrivateData._uORB_MPU9250_ADF_Z),
                                           ((float)PrivateData._uORB_MPU9250_IMUUpdateTime * 1e-6f));
         else
-            AHRSSys->MadgwickAHRSApply(PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo___Yaw,
+            AHRSSys->MadgwickAHRSApply(-1.f * PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo__Roll, -1.f * PrivateData._uORB_Gryo___Yaw,
                                        (-1.f * PrivateData._uORB_MPU9250_ADF_X),
-                                       (PrivateData._uORB_MPU9250_ADF_Y),
+                                       (-1.f * PrivateData._uORB_MPU9250_ADF_Y),
                                        (PrivateData._uORB_MPU9250_ADF_Z),
                                        (_Tmp_AHRS_MAG_X),
                                        (_Tmp_AHRS_MAG_Y),
@@ -555,14 +555,15 @@ public:
         AHRSSys->MadgwickComputeAngles(PrivateData._uORB_Real_Pitch, PrivateData._uORB_Real__Roll, PrivateData._uORB_Real___Yaw);
 
         PrivateData._uORB_Real__Roll *= 180.f / PI;
-        PrivateData._uORB_Real_Pitch *= 180.f / PI;
+        PrivateData._uORB_Real_Pitch *= -180.f / PI;
         PrivateData._uORB_Real___Yaw *= 180.f / PI;
+        //
         PrivateData._uORB_Real___Yaw += YawCorrection;
         if (PrivateData._uORB_Real___Yaw < 0)
             PrivateData._uORB_Real___Yaw += 360;
         else if (PrivateData._uORB_Real___Yaw >= 360)
             PrivateData._uORB_Real___Yaw -= 360;
-
+        //
         PrivateData._uORB_Real__Roll += PrivateData._flag_MPU9250_A_TR_Cali;
         PrivateData._uORB_Real_Pitch += PrivateData._flag_MPU9250_A_TP_Cali;
         //========================= //=========================Navigation update
