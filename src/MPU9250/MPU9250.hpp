@@ -75,8 +75,8 @@ struct MPUConfig
     const char *MPUSPIChannel = "/dev/spidev0.0";
     uint8_t MPUI2CAddress = 0x68;
     int MPU9250_SPI_Freq = 400000;
-    float MPU_Flip_Pitch = 180;
-    float MPU_Flip__Roll = 180;
+    float MPU_Flip_Pitch = 0;
+    float MPU_Flip__Roll = 0;
     float MPU_Flip___Yaw = 0;
     //
     int TargetFreqency = 1000;
@@ -560,7 +560,7 @@ public:
         AHRSSys->MadgwickComputeAngles(PrivateData._uORB_Real__Roll, PrivateData._uORB_Real_Pitch, PrivateData._uORB_Real___Yaw);
 
         PrivateData._uORB_Real__Roll *= 180.f / PI;
-        PrivateData._uORB_Real_Pitch *= -180.f / PI;
+        PrivateData._uORB_Real_Pitch *= 180.f / PI;
         PrivateData._uORB_Real___Yaw *= 180.f / PI;
         //
         PrivateData._uORB_Real___Yaw += YawCorrection;
@@ -575,14 +575,14 @@ public:
         if (PrivateData._uORB_MPU9250_AccelCountDown == 1)
         {
             PrivateData._uORB_MPU9250_Quaternion = Eigen::AngleAxisd(((PrivateData._uORB_Real__Roll - PrivateData._flag_MPU9250_A_TR_Cali) * (PI / 180.f)), Eigen::Vector3d::UnitZ()) *
-                                                   Eigen::AngleAxisd(((-1.f * (PrivateData._uORB_Real_Pitch - PrivateData._flag_MPU9250_A_TP_Cali)) * (PI / 180.f)), Eigen::Vector3d::UnitY()) *
+                                                   Eigen::AngleAxisd(((PrivateData._uORB_Real_Pitch - PrivateData._flag_MPU9250_A_TP_Cali) * (PI / 180.f)), Eigen::Vector3d::UnitY()) *
                                                    Eigen::AngleAxisd((0 * (PI / 180.f)), Eigen::Vector3d::UnitX());
 
             PrivateData._uORB_MPU9250_RotationMatrix = PrivateData._uORB_MPU9250_Quaternion.normalized().toRotationMatrix();
             Eigen::Matrix<double, 1, 3> AccelRaw;
             AccelRaw << PrivateData._uORB_MPU9250_ADF_Z,
-                PrivateData._uORB_MPU9250_ADF_X,
-                PrivateData._uORB_MPU9250_ADF_Y;
+                PrivateData._uORB_MPU9250_ADF_Y,
+                PrivateData._uORB_MPU9250_ADF_X;
 
             Eigen::Matrix<double, 1, 3> AccelStatic = AccelRaw * PrivateData._uORB_MPU9250_RotationMatrix;
             PrivateData._uORB_MPU9250_A_Static_Z = AccelStatic[0] - PrivateData._uORB_MPU9250_A_Static_Vector;
