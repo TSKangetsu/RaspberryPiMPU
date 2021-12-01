@@ -380,12 +380,11 @@ public:
         }
     }
 
-    inline void MPUSensorApplyAHRS(int mx, int my, int mz, bool enabled, float correction)
+    inline void MPUSensorApplyAHRS(int mx, int my, int mz, bool enabled)
     {
         _Tmp_AHRS_MAG_X = mx;
         _Tmp_AHRS_MAG_Y = my;
         _Tmp_AHRS_MAG_Z = mz;
-        YawCorrection = correction;
         AHRSEnable = enabled;
     };
     // Get MPU Data, If you want a Vibration Insensitive data , you need a Stable Loop
@@ -562,12 +561,6 @@ public:
         PrivateData._uORB_Real__Roll *= 180.f / PI;
         PrivateData._uORB_Real_Pitch *= 180.f / PI;
         PrivateData._uORB_Real___Yaw *= 180.f / PI;
-        //
-        PrivateData._uORB_Real___Yaw += YawCorrection;
-        if (PrivateData._uORB_Real___Yaw < 0)
-            PrivateData._uORB_Real___Yaw += 360;
-        else if (PrivateData._uORB_Real___Yaw >= 360)
-            PrivateData._uORB_Real___Yaw -= 360;
         //
         PrivateData._uORB_Real__Roll += PrivateData._flag_MPU9250_A_TR_Cali;
         PrivateData._uORB_Real_Pitch += PrivateData._flag_MPU9250_A_TP_Cali;
@@ -862,7 +855,6 @@ private:
     float MPU9250_Accel_LSB = MPU9250_ACCEL_LSB; //+-16g
     char Tmp_MPU9250_Buffer[20] = {0};
     bool AHRSEnable = false;
-    float YawCorrection = 0.f;
     int LastUpdate = 0;
     MPUData PrivateData;
     MPUConfig PrivateConfig;
