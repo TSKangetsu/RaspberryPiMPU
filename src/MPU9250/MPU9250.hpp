@@ -399,191 +399,207 @@ public:
         PrivateData._uORB_MPU9250_A_Y = PrivateData._uORB_MPU9250_A_Y * PrivateData._flag_MPU9250_A_Y_Scal - PrivateData._flag_MPU9250_A_Y_Cali;
         PrivateData._uORB_MPU9250_A_Z = PrivateData._uORB_MPU9250_A_Z * PrivateData._flag_MPU9250_A_Z_Scal - PrivateData._flag_MPU9250_A_Z_Cali;
         //========================= //=========================Gyro Filter
-        switch (PrivateConfig.GyroFilterType)
         {
-        case FilterLPFPT1:
-            if (PrivateConfig.GyroFilterCutOff)
+            switch (PrivateConfig.GyroFilterType)
             {
-                PrivateData._uORB_Gryo__Roll = pt1FilterApply(&GryoFilterLPF[GAXR], ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB));
-                PrivateData._uORB_Gryo_Pitch = pt1FilterApply(&GryoFilterLPF[GAYP], ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB));
-                PrivateData._uORB_Gryo___Yaw = pt1FilterApply(&GryoFilterLPF[GAZY], ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB));
+            case FilterLPFPT1:
+                if (PrivateConfig.GyroFilterCutOff)
+                {
+                    PrivateData._uORB_Gryo__Roll = pt1FilterApply(&GryoFilterLPF[GAXR], ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB));
+                    PrivateData._uORB_Gryo_Pitch = pt1FilterApply(&GryoFilterLPF[GAYP], ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB));
+                    PrivateData._uORB_Gryo___Yaw = pt1FilterApply(&GryoFilterLPF[GAZY], ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB));
+                }
+                else
+                {
+                    PrivateData._uORB_Gryo__Roll = ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB);
+                    PrivateData._uORB_Gryo_Pitch = ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB);
+                    PrivateData._uORB_Gryo___Yaw = ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB);
+                }
+                break;
+            case FilterLPFBiquad:
+                if (PrivateConfig.GyroFilterCutOff)
+                {
+                    PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterBLPF[GAXR], ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB));
+                    PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterBLPF[GAYP], ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB));
+                    PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterBLPF[GAZY], ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB));
+                }
+                else
+                {
+                    PrivateData._uORB_Gryo__Roll = ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB);
+                    PrivateData._uORB_Gryo_Pitch = ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB);
+                    PrivateData._uORB_Gryo___Yaw = ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB);
+                }
+                break;
             }
-            else
+            switch (PrivateConfig.GyroFilterTypeST2)
             {
-                PrivateData._uORB_Gryo__Roll = ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB);
-                PrivateData._uORB_Gryo_Pitch = ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB);
-                PrivateData._uORB_Gryo___Yaw = ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB);
+            case FilterLPFPT1:
+                if (PrivateConfig.GyroFilterCutOffST2)
+                {
+                    PrivateData._uORB_Gryo__Roll = pt1FilterApply(&GryoFilterLPFST2[GAXR], PrivateData._uORB_Gryo__Roll);
+                    PrivateData._uORB_Gryo_Pitch = pt1FilterApply(&GryoFilterLPFST2[GAYP], PrivateData._uORB_Gryo_Pitch);
+                    PrivateData._uORB_Gryo___Yaw = pt1FilterApply(&GryoFilterLPFST2[GAZY], PrivateData._uORB_Gryo___Yaw);
+                }
+                break;
+            case FilterLPFBiquad:
+                if (PrivateConfig.GyroFilterCutOffST2)
+                {
+                    PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterBLPFST2[GAXR], PrivateData._uORB_Gryo__Roll);
+                    PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterBLPFST2[GAYP], PrivateData._uORB_Gryo_Pitch);
+                    PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterBLPFST2[GAZY], PrivateData._uORB_Gryo___Yaw);
+                }
+                break;
             }
-            break;
-        case FilterLPFBiquad:
-            if (PrivateConfig.GyroFilterCutOff)
-            {
-                PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterBLPF[GAXR], ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB));
-                PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterBLPF[GAYP], ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB));
-                PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterBLPF[GAZY], ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB));
-            }
-            else
-            {
-                PrivateData._uORB_Gryo__Roll = ((float)PrivateData._uORB_MPU9250_G_X / MPU9250_Gryo_LSB);
-                PrivateData._uORB_Gryo_Pitch = ((float)PrivateData._uORB_MPU9250_G_Y / MPU9250_Gryo_LSB);
-                PrivateData._uORB_Gryo___Yaw = ((float)PrivateData._uORB_MPU9250_G_Z / MPU9250_Gryo_LSB);
-            }
-            break;
-        }
-        switch (PrivateConfig.GyroFilterTypeST2)
-        {
-        case FilterLPFPT1:
-            if (PrivateConfig.GyroFilterCutOffST2)
-            {
-                PrivateData._uORB_Gryo__Roll = pt1FilterApply(&GryoFilterLPFST2[GAXR], PrivateData._uORB_Gryo__Roll);
-                PrivateData._uORB_Gryo_Pitch = pt1FilterApply(&GryoFilterLPFST2[GAYP], PrivateData._uORB_Gryo_Pitch);
-                PrivateData._uORB_Gryo___Yaw = pt1FilterApply(&GryoFilterLPFST2[GAZY], PrivateData._uORB_Gryo___Yaw);
-            }
-            break;
-        case FilterLPFBiquad:
-            if (PrivateConfig.GyroFilterCutOffST2)
-            {
-                PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterBLPFST2[GAXR], PrivateData._uORB_Gryo__Roll);
-                PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterBLPFST2[GAYP], PrivateData._uORB_Gryo_Pitch);
-                PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterBLPFST2[GAZY], PrivateData._uORB_Gryo___Yaw);
-            }
-            break;
-        }
 
-        if (PrivateConfig.GyroFilterNotchCutOff)
-        {
-            PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GyroNotchFilter[GAXR], PrivateData._uORB_Gryo_Pitch);
-            PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GyroNotchFilter[GAYP], PrivateData._uORB_Gryo__Roll);
-            PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GyroNotchFilter[GAZY], PrivateData._uORB_Gryo___Yaw);
-        }
-        if (PrivateConfig.TargetFreqency >= 1000)
-        {
-            if (PrivateConfig.GyroDynamicAnalyse && GyroDynamicFFTSampleCount == (PrivateConfig.TargetFreqency / 1000))
+            if (PrivateConfig.GyroFilterNotchCutOff)
             {
-                IMUSensorFFTAnalyse();
-                GyroDynamicFFTSampleCount = 0;
+                PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GyroNotchFilter[GAXR], PrivateData._uORB_Gryo_Pitch);
+                PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GyroNotchFilter[GAYP], PrivateData._uORB_Gryo__Roll);
+                PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GyroNotchFilter[GAZY], PrivateData._uORB_Gryo___Yaw);
+            }
+        }
+        //========================= //=========================Dynamic Anlyisc
+        {
+
+            if (PrivateConfig.TargetFreqency >= 1000)
+            {
+                if (PrivateConfig.GyroDynamicAnalyse && GyroDynamicFFTSampleCount == (PrivateConfig.TargetFreqency / 1000))
+                {
+                    IMUSensorFFTAnalyse();
+                    GyroDynamicFFTSampleCount = 0;
+                    //
+                    if (PrivateConfig.DynamicNotchEnable)
+                    {
+                        if (GyroDynamicNotchReady)
+                        {
+                            IMUDynamicNotchUpdate();
+                            int DT = (float)(1.f / (float)PrivateConfig.TargetFreqency) * 1000000.f;
+                            biquadFilterUpdate(&GryoFilterDynamicNotch[GAXR], PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[GAXR], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
+                            biquadFilterUpdate(&GryoFilterDynamicNotch[GAYP], PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[GAYP], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
+                            biquadFilterUpdate(&GryoFilterDynamicNotch[GAZY], PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[GAZY], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
+                            GyroDynamicNotchReady = false;
+                        }
+                    }
+                }
+                else
+                    GyroDynamicFFTSampleCount++;
                 //
                 if (PrivateConfig.DynamicNotchEnable)
                 {
-                    if (GyroDynamicNotchReady)
-                    {
-                        IMUDynamicNotchUpdate();
-                        int DT = (float)(1.f / (float)PrivateConfig.TargetFreqency) * 1000000.f;
-                        biquadFilterUpdate(&GryoFilterDynamicNotch[GAXR], PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[GAXR], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
-                        biquadFilterUpdate(&GryoFilterDynamicNotch[GAYP], PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[GAYP], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
-                        biquadFilterUpdate(&GryoFilterDynamicNotch[GAZY], PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[GAZY], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
-                        GyroDynamicNotchReady = false;
-                    }
                     PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterDynamicNotch[GAXR], PrivateData._uORB_Gryo__Roll);
                     PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterDynamicNotch[GAYP], PrivateData._uORB_Gryo_Pitch);
                     PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterDynamicNotch[GAZY], PrivateData._uORB_Gryo___Yaw);
                 }
             }
-            else
-                GyroDynamicFFTSampleCount++;
         }
         //========================= //=========================Accel Filter
-        if (PrivateData._uORB_MPU9250_AccelCountDown == 1)
         {
-            float AccVibeFloorX = pt1FilterApply(&VibeFloorLPF[AAXN], (PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
-            float AccVibeFloorY = pt1FilterApply(&VibeFloorLPF[AAYN], (PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
-            float AccVibeFloorZ = pt1FilterApply(&VibeFloorLPF[AAZN], (PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
-            PrivateData._uORB_Accel_VIBE_X = pt1FilterApply(&VibeLPF[AAXN], (pow((((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB) - AccVibeFloorX), 2)));
-            PrivateData._uORB_Accel_VIBE_Y = pt1FilterApply(&VibeLPF[AAYN], (pow((((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB) - AccVibeFloorY), 2)));
-            PrivateData._uORB_Accel_VIBE_Z = pt1FilterApply(&VibeLPF[AAZN], (pow((((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB) - AccVibeFloorZ), 2)));
-            //
-            if (PrivateConfig.AccelFilterCutOff)
+            if (PrivateData._uORB_MPU9250_AccelCountDown == 1)
             {
-                switch (PrivateConfig.AccelFilterType)
+                float AccVibeFloorX = pt1FilterApply(&VibeFloorLPF[AAXN], (PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
+                float AccVibeFloorY = pt1FilterApply(&VibeFloorLPF[AAYN], (PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
+                float AccVibeFloorZ = pt1FilterApply(&VibeFloorLPF[AAZN], (PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
+                PrivateData._uORB_Accel_VIBE_X = pt1FilterApply(&VibeLPF[AAXN], (pow((((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB) - AccVibeFloorX), 2)));
+                PrivateData._uORB_Accel_VIBE_Y = pt1FilterApply(&VibeLPF[AAYN], (pow((((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB) - AccVibeFloorY), 2)));
+                PrivateData._uORB_Accel_VIBE_Z = pt1FilterApply(&VibeLPF[AAZN], (pow((((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB) - AccVibeFloorZ), 2)));
+                //
+                if (PrivateConfig.AccelFilterCutOff)
                 {
-                case FilterLPFPT1:
-                    PrivateData._uORB_MPU9250_ADF_X = pt1FilterApply(&AccelFilterLPF[AAXN], ((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
-                    PrivateData._uORB_MPU9250_ADF_Y = pt1FilterApply(&AccelFilterLPF[AAYN], ((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
-                    PrivateData._uORB_MPU9250_ADF_Z = pt1FilterApply(&AccelFilterLPF[AAZN], ((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
-                    break;
-                case FilterLPFBiquad:
-                    PrivateData._uORB_MPU9250_ADF_X = biquadFilterApply(&AccelFilterBLPF[AAXN], ((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
-                    PrivateData._uORB_MPU9250_ADF_Y = biquadFilterApply(&AccelFilterBLPF[AAYN], ((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
-                    PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelFilterBLPF[AAZN], ((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
-                    break;
+                    switch (PrivateConfig.AccelFilterType)
+                    {
+                    case FilterLPFPT1:
+                        PrivateData._uORB_MPU9250_ADF_X = pt1FilterApply(&AccelFilterLPF[AAXN], ((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
+                        PrivateData._uORB_MPU9250_ADF_Y = pt1FilterApply(&AccelFilterLPF[AAYN], ((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
+                        PrivateData._uORB_MPU9250_ADF_Z = pt1FilterApply(&AccelFilterLPF[AAZN], ((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
+                        break;
+                    case FilterLPFBiquad:
+                        PrivateData._uORB_MPU9250_ADF_X = biquadFilterApply(&AccelFilterBLPF[AAXN], ((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
+                        PrivateData._uORB_MPU9250_ADF_Y = biquadFilterApply(&AccelFilterBLPF[AAYN], ((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
+                        PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelFilterBLPF[AAZN], ((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
+                        break;
+                    }
                 }
+                else
+                {
+                    PrivateData._uORB_MPU9250_ADF_X = PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB;
+                    PrivateData._uORB_MPU9250_ADF_Y = PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB;
+                    PrivateData._uORB_MPU9250_ADF_Z = PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB;
+                }
+                //
+                if (abs(PrivateData._uORB_MPU9250_ADF_X) > ACC_CLIPPING_THRESHOLD_G ||
+                    abs(PrivateData._uORB_MPU9250_ADF_Y) > ACC_CLIPPING_THRESHOLD_G ||
+                    abs(PrivateData._uORB_MPU9250_ADF_Z) > ACC_CLIPPING_THRESHOLD_G)
+                    PrivateData._uORB_MPU9250_ACC_Clipped = true;
+                else
+                    PrivateData._uORB_MPU9250_ACC_Clipped = false;
+                //
+                PrivateData._uORB_MPU9250_A_Vector = sqrtf((PrivateData._uORB_MPU9250_ADF_X * PrivateData._uORB_MPU9250_ADF_X) +
+                                                           (PrivateData._uORB_MPU9250_ADF_Y * PrivateData._uORB_MPU9250_ADF_Y) +
+                                                           (PrivateData._uORB_MPU9250_ADF_Z * PrivateData._uORB_MPU9250_ADF_Z));
+                PrivateData._uORB_Accel_Pitch = atan2((float)PrivateData._uORB_MPU9250_ADF_X, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
+                PrivateData._uORB_Accel__Roll = atan2((float)PrivateData._uORB_MPU9250_ADF_Y, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
             }
-            else
-            {
-                PrivateData._uORB_MPU9250_ADF_X = PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB;
-                PrivateData._uORB_MPU9250_ADF_Y = PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB;
-                PrivateData._uORB_MPU9250_ADF_Z = PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB;
-            }
-            //
-            if (abs(PrivateData._uORB_MPU9250_ADF_X) > ACC_CLIPPING_THRESHOLD_G ||
-                abs(PrivateData._uORB_MPU9250_ADF_Y) > ACC_CLIPPING_THRESHOLD_G ||
-                abs(PrivateData._uORB_MPU9250_ADF_Z) > ACC_CLIPPING_THRESHOLD_G)
-                PrivateData._uORB_MPU9250_ACC_Clipped = true;
-            else
-                PrivateData._uORB_MPU9250_ACC_Clipped = false;
-            //
-            PrivateData._uORB_MPU9250_A_Vector = sqrtf((PrivateData._uORB_MPU9250_ADF_X * PrivateData._uORB_MPU9250_ADF_X) +
-                                                       (PrivateData._uORB_MPU9250_ADF_Y * PrivateData._uORB_MPU9250_ADF_Y) +
-                                                       (PrivateData._uORB_MPU9250_ADF_Z * PrivateData._uORB_MPU9250_ADF_Z));
-            PrivateData._uORB_Accel_Pitch = atan2((float)PrivateData._uORB_MPU9250_ADF_X, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
-            PrivateData._uORB_Accel__Roll = atan2((float)PrivateData._uORB_MPU9250_ADF_Y, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
         }
         //========================= //=========================AHRS Update
-        if ((PrivateData._uORB_MPU9250_A_Vector > (PrivateData._uORB_MPU9250_A_Static_Vector - MAX_ACC_NEARNESS)) &&
-            (PrivateData._uORB_MPU9250_A_Vector < (PrivateData._uORB_MPU9250_A_Static_Vector + MAX_ACC_NEARNESS)))
-            PrivateData.MPUMixTraditionBeta = PrivateConfig.GyroToAccelBeta;
-        else
-            PrivateData.MPUMixTraditionBeta = 0.f;
-
-        if (!AHRSEnable)
-            AHRSSys->MadgwickAHRSIMUApply(PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo___Yaw,
-                                          (PrivateData._uORB_MPU9250_ADF_X),
-                                          (PrivateData._uORB_MPU9250_ADF_Y),
-                                          (PrivateData._uORB_MPU9250_ADF_Z),
-                                          ((float)PrivateData._uORB_MPU9250_IMUUpdateTime * 1e-6f));
-        else
-            AHRSSys->MadgwickAHRSApply(PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo___Yaw,
-                                       (PrivateData._uORB_MPU9250_ADF_X),
-                                       (PrivateData._uORB_MPU9250_ADF_Y),
-                                       (PrivateData._uORB_MPU9250_ADF_Z),
-                                       (_Tmp_AHRS_MAG_X),
-                                       (_Tmp_AHRS_MAG_Y),
-                                       (_Tmp_AHRS_MAG_Z),
-                                       ((float)PrivateData._uORB_MPU9250_IMUUpdateTime * 1e-6f));
-
-        AHRSSys->MadgwickSetAccelWeight(PrivateData.MPUMixTraditionBeta);
-        AHRSSys->MadgwickAHRSGetQ(PrivateData._uORB_Raw_QuaternionQ[0],
-                                  PrivateData._uORB_Raw_QuaternionQ[1],
-                                  PrivateData._uORB_Raw_QuaternionQ[2],
-                                  PrivateData._uORB_Raw_QuaternionQ[3]);
-        AHRSSys->MadgwickComputeAngles(PrivateData._uORB_Real__Roll, PrivateData._uORB_Real_Pitch, PrivateData._uORB_Real___Yaw);
-
-        PrivateData._uORB_Real__Roll *= 180.f / PI;
-        PrivateData._uORB_Real_Pitch *= 180.f / PI;
-        PrivateData._uORB_Real___Yaw *= 180.f / PI;
-        //
-        PrivateData._uORB_Real__Roll += PrivateData._flag_MPU9250_A_TR_Cali;
-        PrivateData._uORB_Real_Pitch += PrivateData._flag_MPU9250_A_TP_Cali;
-        //========================= //=========================Navigation update
-        if (PrivateData._uORB_MPU9250_AccelCountDown == 1)
         {
-            PrivateData._uORB_MPU9250_Quaternion = Eigen::AngleAxisd(((PrivateData._uORB_Real__Roll - PrivateData._flag_MPU9250_A_TR_Cali) * (PI / 180.f)), Eigen::Vector3d::UnitZ()) *
-                                                   Eigen::AngleAxisd(((PrivateData._uORB_Real_Pitch - PrivateData._flag_MPU9250_A_TP_Cali) * (PI / 180.f)), Eigen::Vector3d::UnitY()) *
-                                                   Eigen::AngleAxisd((0 * (PI / 180.f)), Eigen::Vector3d::UnitX());
+            if ((PrivateData._uORB_MPU9250_A_Vector > (PrivateData._uORB_MPU9250_A_Static_Vector - MAX_ACC_NEARNESS)) &&
+                (PrivateData._uORB_MPU9250_A_Vector < (PrivateData._uORB_MPU9250_A_Static_Vector + MAX_ACC_NEARNESS)))
+                PrivateData.MPUMixTraditionBeta = PrivateConfig.GyroToAccelBeta;
+            else
+                PrivateData.MPUMixTraditionBeta = 0.f;
 
-            PrivateData._uORB_MPU9250_RotationMatrix = PrivateData._uORB_MPU9250_Quaternion.normalized().toRotationMatrix();
-            Eigen::Matrix<double, 1, 3> AccelRaw;
-            AccelRaw << PrivateData._uORB_MPU9250_ADF_Z,
-                PrivateData._uORB_MPU9250_ADF_Y,
-                PrivateData._uORB_MPU9250_ADF_X;
+            if (!AHRSEnable)
+                AHRSSys->MadgwickAHRSIMUApply(PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo___Yaw,
+                                              (PrivateData._uORB_MPU9250_ADF_X),
+                                              (PrivateData._uORB_MPU9250_ADF_Y),
+                                              (PrivateData._uORB_MPU9250_ADF_Z),
+                                              ((float)PrivateData._uORB_MPU9250_IMUUpdateTime * 1e-6f));
+            else
+                AHRSSys->MadgwickAHRSApply(PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo___Yaw,
+                                           (PrivateData._uORB_MPU9250_ADF_X),
+                                           (PrivateData._uORB_MPU9250_ADF_Y),
+                                           (PrivateData._uORB_MPU9250_ADF_Z),
+                                           (_Tmp_AHRS_MAG_X),
+                                           (_Tmp_AHRS_MAG_Y),
+                                           (_Tmp_AHRS_MAG_Z),
+                                           ((float)PrivateData._uORB_MPU9250_IMUUpdateTime * 1e-6f));
 
-            Eigen::Matrix<double, 1, 3> AccelStatic = AccelRaw * PrivateData._uORB_MPU9250_RotationMatrix;
-            PrivateData._uORB_MPU9250_A_Static_Z = AccelStatic[0] - PrivateData._uORB_MPU9250_A_Static_Vector;
-            PrivateData._uORB_MPU9250_A_Static_X = -1.f * AccelStatic[1];
-            PrivateData._uORB_MPU9250_A_Static_Y = -1.f * AccelStatic[2];
-            PrivateData._uORB_Acceleration_X = ((float)PrivateData._uORB_MPU9250_A_Static_X) * GravityAccel * 100.f;
-            PrivateData._uORB_Acceleration_Y = ((float)PrivateData._uORB_MPU9250_A_Static_Y) * GravityAccel * 100.f;
-            PrivateData._uORB_Acceleration_Z = ((float)PrivateData._uORB_MPU9250_A_Static_Z) * GravityAccel * 100.f;
+            AHRSSys->MadgwickSetAccelWeight(PrivateData.MPUMixTraditionBeta);
+            AHRSSys->MadgwickAHRSGetQ(PrivateData._uORB_Raw_QuaternionQ[0],
+                                      PrivateData._uORB_Raw_QuaternionQ[1],
+                                      PrivateData._uORB_Raw_QuaternionQ[2],
+                                      PrivateData._uORB_Raw_QuaternionQ[3]);
+            AHRSSys->MadgwickComputeAngles(PrivateData._uORB_Real__Roll, PrivateData._uORB_Real_Pitch, PrivateData._uORB_Real___Yaw);
+
+            PrivateData._uORB_Real__Roll *= 180.f / PI;
+            PrivateData._uORB_Real_Pitch *= 180.f / PI;
+            PrivateData._uORB_Real___Yaw *= 180.f / PI;
+            //
+            PrivateData._uORB_Real__Roll += PrivateData._flag_MPU9250_A_TR_Cali;
+            PrivateData._uORB_Real_Pitch += PrivateData._flag_MPU9250_A_TP_Cali;
+        }
+        //========================= //=========================Navigation update
+        {
+            if (PrivateData._uORB_MPU9250_AccelCountDown == 1)
+            {
+                PrivateData._uORB_MPU9250_Quaternion = Eigen::AngleAxisd(((PrivateData._uORB_Real__Roll - PrivateData._flag_MPU9250_A_TR_Cali) * (PI / 180.f)), Eigen::Vector3d::UnitZ()) *
+                                                       Eigen::AngleAxisd(((PrivateData._uORB_Real_Pitch - PrivateData._flag_MPU9250_A_TP_Cali) * (PI / 180.f)), Eigen::Vector3d::UnitY()) *
+                                                       Eigen::AngleAxisd((0 * (PI / 180.f)), Eigen::Vector3d::UnitX());
+
+                PrivateData._uORB_MPU9250_RotationMatrix = PrivateData._uORB_MPU9250_Quaternion.normalized().toRotationMatrix();
+                Eigen::Matrix<double, 1, 3> AccelRaw;
+                AccelRaw << PrivateData._uORB_MPU9250_ADF_Z,
+                    PrivateData._uORB_MPU9250_ADF_Y,
+                    PrivateData._uORB_MPU9250_ADF_X;
+
+                Eigen::Matrix<double, 1, 3> AccelStatic = AccelRaw * PrivateData._uORB_MPU9250_RotationMatrix;
+                PrivateData._uORB_MPU9250_A_Static_Z = AccelStatic[0] - PrivateData._uORB_MPU9250_A_Static_Vector;
+                PrivateData._uORB_MPU9250_A_Static_X = -1.f * AccelStatic[1];
+                PrivateData._uORB_MPU9250_A_Static_Y = -1.f * AccelStatic[2];
+                PrivateData._uORB_Acceleration_X = ((float)PrivateData._uORB_MPU9250_A_Static_X) * GravityAccel * 100.f;
+                PrivateData._uORB_Acceleration_Y = ((float)PrivateData._uORB_MPU9250_A_Static_Y) * GravityAccel * 100.f;
+                PrivateData._uORB_Acceleration_Z = ((float)PrivateData._uORB_MPU9250_A_Static_Z) * GravityAccel * 100.f;
+            }
         }
         return PrivateData;
     }
