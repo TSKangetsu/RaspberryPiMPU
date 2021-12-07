@@ -52,7 +52,7 @@
 #define MPU_LOWHZ_LPF_SPEED 1000.f
 
 #define DYNAMIC_NOTCH_DEFAULT_CENTER_HZ 350.f
-#define DYN_NOTCH_SMOOTH_FREQ_HZ 30.f
+#define DYN_NOTCH_SMOOTH_FREQ_HZ 50.f
 #define ACC_VIBE_FLOOR_FILT_HZ 5.f
 #define ACC_VIBE_FILT_HZ 2.f
 #define IMU_CALI_MAX_LOOP 500.0
@@ -236,9 +236,9 @@ public:
             }
             if (PrivateConfig.DynamicNotchEnable)
             {
-                biquadFilterInitLPF(&GryoFilterDynamicFreq[GAXR], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(PrivateConfig.TargetFreqency / 1000) * 2.f)));
-                biquadFilterInitLPF(&GryoFilterDynamicFreq[GAYP], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(PrivateConfig.TargetFreqency / 1000) * 2.f)));
-                biquadFilterInitLPF(&GryoFilterDynamicFreq[GAZY], DYN_NOTCH_SMOOTH_FREQ_HZ, ((float)DT * ((float)(PrivateConfig.TargetFreqency / 1000) * 2.f)));
+                biquadFilterInitLPF(&GryoFilterDynamicFreq[GAXR], DYN_NOTCH_SMOOTH_FREQ_HZ, (DT * 16 * (PrivateConfig.TargetFreqency / 1000)));
+                biquadFilterInitLPF(&GryoFilterDynamicFreq[GAYP], DYN_NOTCH_SMOOTH_FREQ_HZ, (DT * 16 * (PrivateConfig.TargetFreqency / 1000)));
+                biquadFilterInitLPF(&GryoFilterDynamicFreq[GAZY], DYN_NOTCH_SMOOTH_FREQ_HZ, (DT * 16 * (PrivateConfig.TargetFreqency / 1000)));
                 biquadFilterInit(&GryoFilterDynamicNotch[GAXR], DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
                 biquadFilterInit(&GryoFilterDynamicNotch[GAYP], DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
                 biquadFilterInit(&GryoFilterDynamicNotch[GAZY], DYNAMIC_NOTCH_DEFAULT_CENTER_HZ, DT, 1.0f, FILTER_NOTCH);
@@ -574,6 +574,7 @@ public:
             PrivateData._uORB_Real__Roll *= 180.f / PI;
             PrivateData._uORB_Real_Pitch *= 180.f / PI;
             PrivateData._uORB_Real___Yaw *= 180.f / PI;
+            PrivateData._uORB_Real___Yaw = 180 - PrivateData._uORB_Real___Yaw;
             //
             PrivateData._uORB_Real__Roll += PrivateData._flag_MPU9250_A_TR_Cali;
             PrivateData._uORB_Real_Pitch += PrivateData._flag_MPU9250_A_TP_Cali;
