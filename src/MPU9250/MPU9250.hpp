@@ -172,9 +172,9 @@ class RPiMPU9250
 public:
     inline RPiMPU9250(MPUConfig mpuConfig)
     {
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        IMUstartuptime = (tv.tv_sec * (uint64_t)1000000 + tv.tv_usec);
+        struct timespec tv;
+        clock_gettime(CLOCK_MONOTONIC, &tv);
+        IMUstartuptime = (((tv.tv_sec * (uint64_t)1000000 + (tv.tv_nsec / 1000))));
 
         LastUpdate = GetTimestamp();
         PrivateData._uORB_MPU9250_IMUUpdateTime = GetTimestamp();
@@ -860,9 +860,9 @@ private:
 
     inline int GetTimestamp()
     {
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        return ((tv.tv_sec * (uint64_t)1000000 + tv.tv_usec) - IMUstartuptime);
+        struct timespec tv;
+        clock_gettime(CLOCK_MONOTONIC, &tv);
+        return (((tv.tv_sec * (uint64_t)1000000 + (tv.tv_nsec / 1000))) - IMUstartuptime);
     }
 
     int IMUstartuptime = 0;
