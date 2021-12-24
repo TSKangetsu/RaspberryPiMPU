@@ -574,7 +574,8 @@ public:
             PrivateData._uORB_Real__Roll *= 180.f / PI;
             PrivateData._uORB_Real_Pitch *= 180.f / PI;
             PrivateData._uORB_Real___Yaw *= 180.f / PI;
-            // PrivateData._uORB_Real___Yaw = 180 - PrivateData._uORB_Real___Yaw;
+            PrivateData._uORB_Real___Yaw = PrivateData._uORB_Real___Yaw > 0 ? 360 - PrivateData._uORB_Real___Yaw : PrivateData._uORB_Real___Yaw;
+            PrivateData._uORB_Real___Yaw = PrivateData._uORB_Real___Yaw < 0 ? -1 * PrivateData._uORB_Real___Yaw : PrivateData._uORB_Real___Yaw;
             //
             PrivateData._uORB_Real__Roll += PrivateData._flag_MPU9250_A_TR_Cali;
             PrivateData._uORB_Real_Pitch += PrivateData._flag_MPU9250_A_TP_Cali;
