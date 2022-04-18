@@ -343,16 +343,16 @@ public:
             switch (AccelCaliAction)
             {
             case MPUAccelNoseUp:
-                AccelCaliData[AccelCaliAction] += PrivateData._uORB_MPU9250_A_Y;
+                AccelCaliData[AccelCaliAction] += PrivateData._uORB_MPU9250_A_X;
                 break;
             case MPUAccelNoseDown:
-                AccelCaliData[AccelCaliAction] += PrivateData._uORB_MPU9250_A_Y;
+                AccelCaliData[AccelCaliAction] += PrivateData._uORB_MPU9250_A_X;
                 break;
             case MPUAccelNoseRight:
-                AccelCaliData[AccelCaliAction] += PrivateData._uORB_MPU9250_A_X;
+                AccelCaliData[AccelCaliAction] += PrivateData._uORB_MPU9250_A_Y;
                 break;
             case MPUAccelNoseLeft:
-                AccelCaliData[AccelCaliAction] += PrivateData._uORB_MPU9250_A_X;
+                AccelCaliData[AccelCaliAction] += PrivateData._uORB_MPU9250_A_Y;
                 break;
             case MPUAccelNoseTop:
                 AccelCaliData[AccelCaliAction] += PrivateData._uORB_MPU9250_A_Z;
@@ -626,7 +626,7 @@ private:
         {
             MPU9250_fd = _s_spiOpen(PrivateConfig.MPUSPIChannel, PrivateConfig.MPU9250_SPI_Freq, 0);
             if (MPU9250_fd < 0)
-                throw - 2;
+                throw -2;
 
             char MPU9250_SPI_Config_WHOAMI[2] = {0xf5, 0x00};
             _s_spiXfer(MPU9250_fd, MPU9250_SPI_Config_WHOAMI, MPU9250_SPI_Config_WHOAMI, PrivateConfig.MPU9250_SPI_Freq, 2);
