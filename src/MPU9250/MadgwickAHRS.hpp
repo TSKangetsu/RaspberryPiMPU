@@ -242,7 +242,7 @@ private:
 	{
 		float halfx = 0.5f * x;
 		float y = x;
-		long i = *(long *)&y;
+		uint32_t i = *(uint32_t *)&y;
 		i = 0x5f3759df - (i >> 1);
 		y = *(float *)&i;
 		y = y * (1.5f - (halfx * y * y));

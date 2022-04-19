@@ -99,13 +99,13 @@ int main(int argc, char *argv[])
         case 't':
         {
             double AccelCaliData[30];
-            TimeMax = 500;
+            TimeMax = 1000;
             std::cout << "Start MPU Monitor\n";
             std::cout << "Setting UP MPU9250 ....";
             std::cout.flush();
             MPUConfig option;
             option.MPUType = MPUTypeSPI;
-            option.MPUSPIChannel = "/dev/spidev32766.0";
+            option.MPUSPIChannel = "/dev/spidev0.1";
             option.MPUI2CAddress = 0x68;
             option.MPU9250_SPI_Freq = 1000 * 1000;
             option.TargetFreqency = 1000.f;
