@@ -1,9 +1,14 @@
 #pragma once
 #include <pigpio.h>
-#include<stdlib.h>
+#include <stdlib.h>
 
 inline int _s_spiOpen(const char *spiChan, int spiBaud, int spiFlags)
 {
+    int tryInit = gpioCfgClock(5, 0, 0);
+
+    if (tryInit < 0)
+        return -1;
+
     gpioInitialise();
     return spiOpen(atoi(spiChan), spiBaud, spiFlags);
 }
