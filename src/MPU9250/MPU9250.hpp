@@ -99,6 +99,8 @@ struct MPUConfig
     int AccTargetFreqency = 1000;
     int AccelFilterType = FilterLPFBiquad;
     int AccelFilterCutOff = 30;
+    int AccelFilterNotchCenterFreq = 0;
+    int AccelFilterNotchCutOff = 0;
 };
 
 struct MPUData
@@ -181,7 +183,7 @@ public:
 
         PrivateConfig = mpuConfig;
         GyroDynmiacNotchMinBox = (PrivateConfig.DynamicNotchMinFreq / FFTResolution) - 1;
-        //Settings all Filter
+        // Settings all Filter
         {
             int DT = (float)(1.f / (float)PrivateConfig.TargetFreqency) * 1000000;
             int ACCDT = (float)(1.f / (float)PrivateConfig.AccTargetFreqency) * 1000000;
@@ -233,6 +235,12 @@ public:
                 biquadFilterInitNotch(&GyroNotchFilter[GAXR], DT, PrivateConfig.GyroFilterNotchCenterFreq, PrivateConfig.GyroFilterNotchCutOff);
                 biquadFilterInitNotch(&GyroNotchFilter[GAYP], DT, PrivateConfig.GyroFilterNotchCenterFreq, PrivateConfig.GyroFilterNotchCutOff);
                 biquadFilterInitNotch(&GyroNotchFilter[GAZY], DT, PrivateConfig.GyroFilterNotchCenterFreq, PrivateConfig.GyroFilterNotchCutOff);
+            }
+            if (PrivateConfig.AccelFilterNotchCutOff)
+            {
+                biquadFilterInitNotch(&AccelNotchFilter[AAXN], ACCDT, PrivateConfig.AccelFilterNotchCenterFreq, PrivateConfig.AccelFilterNotchCutOff);
+                biquadFilterInitNotch(&AccelNotchFilter[AAYN], ACCDT, PrivateConfig.AccelFilterNotchCenterFreq, PrivateConfig.AccelFilterNotchCutOff);
+                biquadFilterInitNotch(&AccelNotchFilter[AAZN], ACCDT, PrivateConfig.AccelFilterNotchCenterFreq, PrivateConfig.AccelFilterNotchCutOff);
             }
             if (PrivateConfig.DynamicNotchEnable)
             {
@@ -518,6 +526,13 @@ public:
                         PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelFilterBLPF[AAZN], ((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
                         break;
                     }
+
+                    if (PrivateConfig.AccelFilterNotchCutOff)
+                    {
+                        PrivateData._uORB_MPU9250_ADF_X = biquadFilterApply(&AccelNotchFilter[AAXN], PrivateData._uORB_MPU9250_ADF_X);
+                        PrivateData._uORB_MPU9250_ADF_Y = biquadFilterApply(&AccelNotchFilter[AAYN], PrivateData._uORB_MPU9250_ADF_Y);
+                        PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelNotchFilter[AAZN], PrivateData._uORB_MPU9250_ADF_Z);
+                    }
                 }
                 else
                 {
@@ -645,7 +660,7 @@ private:
             _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET4, PrivateConfig.MPU9250_SPI_Freq, 2); // reset
             usleep(1000);
 
-            char MPU9250_SPI_Config_ALPF[2] = {0x1d, 0x03};                                      // FChoice 1, DLPF 3 , dlpf cut off 44.8hz for accel
+            char MPU9250_SPI_Config_ALPF[2] = {0x1d, 0x00};                                      // FChoice 1, DLPF 3 , dlpf cut off 44.8hz for accel
             _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_ALPF, PrivateConfig.MPU9250_SPI_Freq, 2); // Accel2
             usleep(15);
             char MPU9250_SPI_Config_Acce[2] = {0x1c, 0x18};                                      // Full AccelScale +- 16g
@@ -734,7 +749,7 @@ private:
         }
     }
 
-    //Collect GryoData 1000HZ and DownSample to 500hz by 1/2
+    // Collect GryoData 1000HZ and DownSample to 500hz by 1/2
     inline void IMUSensorFFTAnalyse()
     {
         if (FFTCountDown < 16)
@@ -743,7 +758,7 @@ private:
             FFTOverSample[1] += PrivateData._uORB_Gryo_Pitch;
             FFTOverSample[2] += PrivateData._uORB_Gryo___Yaw;
             FFTOverSampleCount++;
-            //DownSample DataSheet To 500hz
+            // DownSample DataSheet To 500hz
             if (FFTOverSampleCount >= (PrivateConfig.TargetFreqency / 1000))
             {
                 FFTOverSampleCount = 0;
@@ -783,13 +798,13 @@ private:
     {
         for (size_t x = 0; x < 3; x++)
         {
-            //This Part is from betaflight/INAV
+            // This Part is from betaflight/INAV
             {
                 bool fftIncreased = false;
                 float dataMax = 0;
                 uint8_t binStart = 0;
                 uint8_t binMax = 0;
-                //for bins after initial decline, identify start bin and max bin
+                // for bins after initial decline, identify start bin and max bin
                 for (int i = GyroDynmiacNotchMinBox; i < 9; i++)
                 {
                     if (fftIncreased || (PrivateData.FFTSampleBox[x][i] > PrivateData.FFTSampleBox[x][i - 1]))
@@ -885,7 +900,7 @@ private:
     double _Tmp_Gryo_Y_Cali_ON = 0;
     double _Tmp_Gryo_Z_Cali_ON = 0;
     double _Tmp_Accel_Static_Cali_ON = 0;
-    //CleanFlight Filter
+    // CleanFlight Filter
     pt1Filter_t VibeLPF[3];
     pt1Filter_t VibeFloorLPF[3];
     pt1Filter_t GryoFilterLPF[3];
@@ -895,7 +910,8 @@ private:
     biquadFilter_t GryoFilterBLPFST2[3];
     biquadFilter_t AccelFilterBLPF[3];
     biquadFilter_t GyroNotchFilter[3];
-    //Dynamic Filter
+    biquadFilter_t AccelNotchFilter[3];
+    // Dynamic Filter
     int FFTCountDown = 0;
     int FFTAsixSampleCount = 0;
     int FFTOverSampleCount = 0;
