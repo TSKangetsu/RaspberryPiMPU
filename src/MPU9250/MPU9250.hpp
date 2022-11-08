@@ -369,7 +369,7 @@ public:
                 AccelCaliData[AccelCaliAction] += PrivateData._uORB_MPU9250_A_Z;
                 break;
             }
-            usleep((int)(1.f / (float)PrivateConfig.TargetFreqency * 1000000.f));
+            usleep((int)(1.f / (float)PrivateConfig.AccTargetFreqency * 1000000.f));
         }
         if (AccelCaliAction == MPUAccelCaliGet)
         {
@@ -379,11 +379,11 @@ public:
             AccelCaliData[MPUAccelNoseLeft] /= 2000.f;
             AccelCaliData[MPUAccelNoseTop] /= 2000.f;
             AccelCaliData[MPUAccelNoseRev] /= 2000.f;
-            AccelCaliData[MPUAccelCaliX] = (AccelCaliData[MPUAccelNoseRight] + AccelCaliData[MPUAccelNoseLeft]) / 2.f;
-            AccelCaliData[MPUAccelCaliY] = (AccelCaliData[MPUAccelNoseUp] + AccelCaliData[MPUAccelNoseDown]) / 2.f;
+            AccelCaliData[MPUAccelCaliX] = (AccelCaliData[MPUAccelNoseUp] + AccelCaliData[MPUAccelNoseDown]) / 2.f;
+            AccelCaliData[MPUAccelCaliY] = (AccelCaliData[MPUAccelNoseRight] + AccelCaliData[MPUAccelNoseLeft]) / 2.f;
             AccelCaliData[MPUAccelCaliZ] = (AccelCaliData[MPUAccelNoseTop] + AccelCaliData[MPUAccelNoseRev]) / 2.f;
-            AccelCaliData[MPUAccelScalX] = MPU9250_Accel_LSB / (AccelCaliData[MPUAccelNoseLeft] - AccelCaliData[7]);
-            AccelCaliData[MPUAccelScalY] = MPU9250_Accel_LSB / (AccelCaliData[MPUAccelNoseUp] - AccelCaliData[8]);
+            AccelCaliData[MPUAccelScalX] = MPU9250_Accel_LSB / (AccelCaliData[MPUAccelNoseUp] - AccelCaliData[8]);
+            AccelCaliData[MPUAccelScalY] = MPU9250_Accel_LSB / (AccelCaliData[MPUAccelNoseLeft] - AccelCaliData[7]);
             AccelCaliData[MPUAccelScalZ] = MPU9250_Accel_LSB / (AccelCaliData[MPUAccelNoseTop] - AccelCaliData[9]);
         }
     }
@@ -660,7 +660,7 @@ private:
             _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET4, PrivateConfig.MPU9250_SPI_Freq, 2); // reset
             usleep(1000);
 
-            char MPU9250_SPI_Config_ALPF[2] = {0x1d, 0x00};                                      // FChoice 1, DLPF 3 , dlpf cut off 44.8hz for accel
+            char MPU9250_SPI_Config_ALPF[2] = {0x1d, 0x00};                                      // FChoice 1, DLPF 3 , dlpf cut off 44.8hz for accel is 0x03, but now 0x00 is not apply accel hardware
             _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_ALPF, PrivateConfig.MPU9250_SPI_Freq, 2); // Accel2
             usleep(15);
             char MPU9250_SPI_Config_Acce[2] = {0x1c, 0x18};                                      // Full AccelScale +- 16g
