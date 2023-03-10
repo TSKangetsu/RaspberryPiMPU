@@ -86,7 +86,7 @@ inline int _s_spiWrite(int fd, void *buffer, int speed, int count)
     return err;
 }
 
-inline int _s_spiXfer(int fd, char *txBuf, char *rxBuf, int speed, int count)
+inline int _s_spiXfer(int fd, uint8_t *txBuf, uint8_t *rxBuf, int speed, int count)
 {
     int err;
     struct spi_ioc_transfer spi;
