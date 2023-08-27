@@ -708,13 +708,14 @@ private:
                 LastUpdate = GetTimestamp();
 
                 uint8_t Tmp_MPU9250_SPI_Buffer[8] = {0};
+                uint8_t Tmp_MPU9250_SPI_Bufferout[8] = {0};
                 Tmp_MPU9250_SPI_Buffer[0] = 0xBB;
                 if (PrivateData._uORB_MPU9250_AccelCountDown >= (PrivateConfig.TargetFreqency / PrivateConfig.AccTargetFreqency))
                 {
-                    _s_spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_Buffer, Tmp_MPU9250_SPI_Buffer, PrivateConfig.MPU9250_SPI_Freq, 8);
-                    int Tmp_AX = (short)((int)Tmp_MPU9250_SPI_Buffer[1] << 8 | (int)Tmp_MPU9250_SPI_Buffer[2]);
-                    int Tmp_AY = (short)((int)Tmp_MPU9250_SPI_Buffer[3] << 8 | (int)Tmp_MPU9250_SPI_Buffer[4]);
-                    int Tmp_AZ = (short)((int)Tmp_MPU9250_SPI_Buffer[5] << 8 | (int)Tmp_MPU9250_SPI_Buffer[6]);
+                    _s_spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_Buffer, Tmp_MPU9250_SPI_Bufferout, PrivateConfig.MPU9250_SPI_Freq, 8);
+                    int Tmp_AX = (short)((int)Tmp_MPU9250_SPI_Bufferout[1] << 8 | (int)Tmp_MPU9250_SPI_Bufferout[2]);
+                    int Tmp_AY = (short)((int)Tmp_MPU9250_SPI_Bufferout[3] << 8 | (int)Tmp_MPU9250_SPI_Bufferout[4]);
+                    int Tmp_AZ = (short)((int)Tmp_MPU9250_SPI_Bufferout[5] << 8 | (int)Tmp_MPU9250_SPI_Bufferout[6]);
                     // Step 1: rotate Yaw
                     int Tmp_A2X = Tmp_AX * cos(DEG2RAD((PrivateConfig.MPU_Flip___Yaw))) + Tmp_AY * sin(DEG2RAD((PrivateConfig.MPU_Flip___Yaw)));
                     int Tmp_A2Y = Tmp_AY * cos(DEG2RAD((PrivateConfig.MPU_Flip___Yaw))) + Tmp_AX * sin(DEG2RAD((180 + PrivateConfig.MPU_Flip___Yaw)));
@@ -732,11 +733,12 @@ private:
 
                 {
                     uint8_t Tmp_MPU9250_SPI_GBuffer[8] = {0};
+                    uint8_t Tmp_MPU9250_SPI_GBufferout[8] = {0};
                     Tmp_MPU9250_SPI_GBuffer[0] = 0xC3;
-                    _s_spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_GBuffer, Tmp_MPU9250_SPI_GBuffer, PrivateConfig.MPU9250_SPI_Freq, 8);
-                    int Tmp_GX = (short)((int)Tmp_MPU9250_SPI_GBuffer[1] << 8 | (int)Tmp_MPU9250_SPI_GBuffer[2]);
-                    int Tmp_GY = (short)((int)Tmp_MPU9250_SPI_GBuffer[3] << 8 | (int)Tmp_MPU9250_SPI_GBuffer[4]);
-                    int Tmp_GZ = (short)((int)Tmp_MPU9250_SPI_GBuffer[5] << 8 | (int)Tmp_MPU9250_SPI_GBuffer[6]);
+                    _s_spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_GBuffer, Tmp_MPU9250_SPI_GBufferout, PrivateConfig.MPU9250_SPI_Freq, 8);
+                    int Tmp_GX = (short)((int)Tmp_MPU9250_SPI_GBufferout[1] << 8 | (int)Tmp_MPU9250_SPI_GBufferout[2]);
+                    int Tmp_GY = (short)((int)Tmp_MPU9250_SPI_GBufferout[3] << 8 | (int)Tmp_MPU9250_SPI_GBufferout[4]);
+                    int Tmp_GZ = (short)((int)Tmp_MPU9250_SPI_GBufferout[5] << 8 | (int)Tmp_MPU9250_SPI_GBufferout[6]);
                     // Step 1: rotate Yaw
                     int Tmp_G2X = Tmp_GX * cos(DEG2RAD((PrivateConfig.MPU_Flip___Yaw))) + Tmp_GY * sin(DEG2RAD((PrivateConfig.MPU_Flip___Yaw)));
                     int Tmp_G2Y = Tmp_GY * cos(DEG2RAD((PrivateConfig.MPU_Flip___Yaw))) + Tmp_GX * sin(DEG2RAD((180 + PrivateConfig.MPU_Flip___Yaw)));
