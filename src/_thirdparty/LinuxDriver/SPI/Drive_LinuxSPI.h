@@ -7,6 +7,7 @@
 #include <getopt.h>
 #include <fcntl.h>
 #include <asm/ioctls.h>
+#include <sys/ioctl.h>
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
 

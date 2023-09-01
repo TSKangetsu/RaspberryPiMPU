@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
             TimeMax = 500;
             MPUConfig option;
             option.MPUType = MPUTypeSPI;
-            option.MPUSPIChannel = "/dev/spidev32766.0";
+            option.MPUSPIChannel = "/dev/spidev0.0";
             option.MPUI2CAddress = 0x68;
             option.MPU9250_SPI_Freq = 1000 * 1000;
             option.TargetFreqency = 1000.f;
@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
             std::cout.flush();
             MPUConfig option;
             option.MPUType = MPUTypeSPI;
-            option.MPUSPIChannel = "/dev/spidev0.1";
+            option.MPUSPIChannel = "/dev/spidev0.0";
             option.MPUI2CAddress = 0x68;
             option.MPU9250_SPI_Freq = 1000 * 1000;
             option.TargetFreqency = 1000.f;
