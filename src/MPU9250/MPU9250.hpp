@@ -293,6 +293,12 @@ public:
         PrivateData._flag_MPU9250_A_TR_Cali = AccelCaliData[MPUAccelTRIM_Roll];
         PrivateData._flag_MPU9250_A_TP_Cali = AccelCaliData[MPUAccelTRIMPitch];
 
+        for (int cali_count = 0; cali_count < IMU_CALI_MAX_LOOP; cali_count++)
+        {
+            MPUSensorsDataGet();
+            usleep((int)(1.f / (float)PrivateConfig.TargetFreqency * 1000000.f));
+        }
+
         double _Tmp_Gryo_X_Cali = 0;
         double _Tmp_Gryo_Y_Cali = 0;
         double _Tmp_Gryo_Z_Cali = 0;
@@ -301,6 +307,7 @@ public:
         PrivateData._flag_MPU9250_G_Y_Cali = 0;
         PrivateData._flag_MPU9250_G_Z_Cali = 0;
 
+
         for (int cali_count = 0; cali_count < IMU_CALI_MAX_LOOP; cali_count++)
         {
             MPUSensorsDataGet();
@@ -308,6 +315,7 @@ public:
             _Tmp_Gryo_X_Cali += PrivateData._uORB_MPU9250_G_X;
             _Tmp_Gryo_Y_Cali += PrivateData._uORB_MPU9250_G_Y;
             _Tmp_Gryo_Z_Cali += PrivateData._uORB_MPU9250_G_Z;
+
             usleep((int)(1.f / (float)PrivateConfig.TargetFreqency * 1000000.f));
         }
 
@@ -317,7 +325,6 @@ public:
             _Tmp_Accel_Static_Cali += PrivateData._uORB_MPU9250_A_Vector;
             usleep((int)(1.f / (float)PrivateConfig.TargetFreqency * 1000000.f));
         }
-
         PrivateData._flag_MPU9250_G_X_Cali = _Tmp_Gryo_X_Cali / IMU_CALI_MAX_LOOP;
         PrivateData._flag_MPU9250_G_Y_Cali = _Tmp_Gryo_Y_Cali / IMU_CALI_MAX_LOOP;
         PrivateData._flag_MPU9250_G_Z_Cali = _Tmp_Gryo_Z_Cali / IMU_CALI_MAX_LOOP;
@@ -420,6 +427,7 @@ public:
         PrivateData._uORB_MPU9250_G_X -= PrivateData._flag_MPU9250_G_X_Cali;
         PrivateData._uORB_MPU9250_G_Y -= PrivateData._flag_MPU9250_G_Y_Cali;
         PrivateData._uORB_MPU9250_G_Z -= PrivateData._flag_MPU9250_G_Z_Cali;
+
         PrivateData._uORB_MPU9250_A_X = PrivateData._uORB_MPU9250_A_X * PrivateData._flag_MPU9250_A_X_Scal - PrivateData._flag_MPU9250_A_X_Cali;
         PrivateData._uORB_MPU9250_A_Y = PrivateData._uORB_MPU9250_A_Y * PrivateData._flag_MPU9250_A_Y_Scal - PrivateData._flag_MPU9250_A_Y_Cali;
         PrivateData._uORB_MPU9250_A_Z = PrivateData._uORB_MPU9250_A_Z * PrivateData._flag_MPU9250_A_Z_Scal - PrivateData._flag_MPU9250_A_Z_Cali;
@@ -647,7 +655,7 @@ public:
     inline ~RPiMPU9250()
     {
         AHRSSys.reset();
-        _s_spiClose(MPU9250_fd);
+        _s_spiClose(Sensor_fd);
     };
 
 private:
@@ -655,50 +663,51 @@ private:
     {
         if (PrivateConfig.GyroScope == MPU9250)
         {
+
             double OutputSpeedCal = (MPU_250HZ_LPF_SPEED / (float)PrivateConfig.TargetFreqency) - 1.f;
             if (PrivateConfig.MPUType == MPUTypeSPI)
             {
-                MPU9250_fd = _s_spiOpen(PrivateConfig.MPUSPIChannel, PrivateConfig.MPU9250_SPI_Freq, 0);
-                if (MPU9250_fd < 0)
+                Sensor_fd = _s_spiOpen(PrivateConfig.MPUSPIChannel, PrivateConfig.MPU9250_SPI_Freq, 0);
+                if (Sensor_fd < 0)
                     throw std::invalid_argument("[SPI] MPU device can't open");
 
                 uint8_t MPU9250_SPI_Config_WHOAMI[2] = {0xf5, 0x00};
-                _s_spiXfer(MPU9250_fd, MPU9250_SPI_Config_WHOAMI, MPU9250_SPI_Config_WHOAMI, PrivateConfig.MPU9250_SPI_Freq, 2);
+                _s_spiXfer(Sensor_fd, MPU9250_SPI_Config_WHOAMI, MPU9250_SPI_Config_WHOAMI, PrivateConfig.MPU9250_SPI_Freq, 2);
                 PrivateData.DeviceType = MPU9250_SPI_Config_WHOAMI[1];
 
                 uint8_t MPU9250_SPI_Config_RESET[2] = {0x6b, 0x80};
-                _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET, PrivateConfig.MPU9250_SPI_Freq, 2); // reset
+                _s_spiWrite(Sensor_fd, MPU9250_SPI_Config_RESET, PrivateConfig.MPU9250_SPI_Freq, 2); // reset
                 usleep(500);
                 uint8_t MPU9250_SPI_Config_RESET2[2] = {0x68, 0x07};
-                _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET2, PrivateConfig.MPU9250_SPI_Freq, 2); // BIT_GYRO | BIT_ACC | BIT_TEMP reset
+                _s_spiWrite(Sensor_fd, MPU9250_SPI_Config_RESET2, PrivateConfig.MPU9250_SPI_Freq, 2); // BIT_GYRO | BIT_ACC | BIT_TEMP reset
                 usleep(500);
                 uint8_t MPU9250_SPI_Config_RESET3[2] = {0x6b, 0x00};
-                _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET3, PrivateConfig.MPU9250_SPI_Freq, 2); // reset
+                _s_spiWrite(Sensor_fd, MPU9250_SPI_Config_RESET3, PrivateConfig.MPU9250_SPI_Freq, 2); // reset
                 usleep(500);
                 uint8_t MPU9250_SPI_Config_RESET4[2] = {0x6b, 0x01};
-                _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_RESET4, PrivateConfig.MPU9250_SPI_Freq, 2); // reset
+                _s_spiWrite(Sensor_fd, MPU9250_SPI_Config_RESET4, PrivateConfig.MPU9250_SPI_Freq, 2); // reset
                 usleep(1000);
 
-                uint8_t MPU9250_SPI_Config_ALPF[2] = {0x1d, 0x00};                                   // FChoice 1, DLPF 3 , dlpf cut off 44.8hz for accel is 0x03, but now 0x00 is not apply accel hardware
-                _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_ALPF, PrivateConfig.MPU9250_SPI_Freq, 2); // Accel2
+                uint8_t MPU9250_SPI_Config_ALPF[2] = {0x1d, 0x00};                                  // FChoice 1, DLPF 3 , dlpf cut off 44.8hz for accel is 0x03, but now 0x00 is not apply accel hardware
+                _s_spiWrite(Sensor_fd, MPU9250_SPI_Config_ALPF, PrivateConfig.MPU9250_SPI_Freq, 2); // Accel2
                 usleep(15);
-                uint8_t MPU9250_SPI_Config_Acce[2] = {0x1c, 0x18};                                   // Full AccelScale +- 16g
-                _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_Acce, PrivateConfig.MPU9250_SPI_Freq, 2); // Accel
+                uint8_t MPU9250_SPI_Config_Acce[2] = {0x1c, 0x18};                                  // Full AccelScale +- 16g
+                _s_spiWrite(Sensor_fd, MPU9250_SPI_Config_Acce, PrivateConfig.MPU9250_SPI_Freq, 2); // Accel
                 usleep(15);
-                uint8_t MPU9250_SPI_Config_Gyro[2] = {0x1b, 0x18};                                   // Full GyroScale +-2000dps, dlpf 250hz
-                _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_Gyro, PrivateConfig.MPU9250_SPI_Freq, 2); // Gryo
+                uint8_t MPU9250_SPI_Config_Gyro[2] = {0x1b, 0x18};                                  // Full GyroScale +-2000dps, dlpf 250hz
+                _s_spiWrite(Sensor_fd, MPU9250_SPI_Config_Gyro, PrivateConfig.MPU9250_SPI_Freq, 2); // Gryo
                 usleep(15);
-                uint8_t MPU9250_SPI_Config_GLPF[2] = {0x1a, 0x00};                                   // DLPF_CFG is 000 , with Gyro dlpf is 250hz
-                _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_GLPF, PrivateConfig.MPU9250_SPI_Freq, 2); // config
+                uint8_t MPU9250_SPI_Config_GLPF[2] = {0x1a, 0x00};                                  // DLPF_CFG is 000 , with Gyro dlpf is 250hz
+                _s_spiWrite(Sensor_fd, MPU9250_SPI_Config_GLPF, PrivateConfig.MPU9250_SPI_Freq, 2); // config
                 usleep(15);
                 // uint8_t MPU9250_SPI_Config_SIMP[2] = {0x19, 0x04};   // 1khz / (1 + OutputSpeedCal) = 500hz; OutputSpeedCal is 2;
-                // _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_SIMP, 2); // DLPF's Sample rate's DIV , when > 250 hz lpf, not work
+                // _s_spiWrite(Sensor_fd, MPU9250_SPI_Config_SIMP, 2); // DLPF's Sample rate's DIV , when > 250 hz lpf, not work
                 // usleep(15);
                 uint8_t MPU9250_SPI_Config_INTC[2] = {0x37, 0x22};
-                _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_INTC, PrivateConfig.MPU9250_SPI_Freq, 2);
+                _s_spiWrite(Sensor_fd, MPU9250_SPI_Config_INTC, PrivateConfig.MPU9250_SPI_Freq, 2);
                 usleep(500);
                 uint8_t MPU9250_SPI_Config_INTE[2] = {0x38, 0x01};
-                _s_spiWrite(MPU9250_fd, MPU9250_SPI_Config_INTE, PrivateConfig.MPU9250_SPI_Freq, 2);
+                _s_spiWrite(Sensor_fd, MPU9250_SPI_Config_INTE, PrivateConfig.MPU9250_SPI_Freq, 2);
                 usleep(500);
             }
             else if (PrivateConfig.MPUType == MPUTypeI2C)
@@ -709,48 +718,48 @@ private:
         {
             if (PrivateConfig.ICMType == ICMTypeSPI)
             {
-                ICM20602_fd = _s_spiOpen(PrivateConfig.ICMSPIChannel, PrivateConfig.ICM20602_SPI_Freq, 0);
-                if (ICM20602_fd < 0)
+                Sensor_fd = _s_spiOpen(PrivateConfig.ICMSPIChannel, PrivateConfig.ICM20602_SPI_Freq, 0);
+                if (Sensor_fd < 0)
                     throw std::invalid_argument("[SPI] ICM device can't open");
                 uint8_t ICM20602_SPI_Config_WHOAMI[2] = {0xf5, 0x00};
-                _s_spiXfer(ICM20602_fd, ICM20602_SPI_Config_WHOAMI, ICM20602_SPI_Config_WHOAMI, PrivateConfig.ICM20602_SPI_Freq, 2);
+                _s_spiXfer(Sensor_fd, ICM20602_SPI_Config_WHOAMI, ICM20602_SPI_Config_WHOAMI, PrivateConfig.ICM20602_SPI_Freq, 2);
                 PrivateData.DeviceType = ICM20602_SPI_Config_WHOAMI[1];
 
                 uint8_t ICM20602_SPI_Config_RESET[2] = {0x6b, 0x80};
-                _s_spiWrite(ICM20602_fd, ICM20602_SPI_Config_RESET, PrivateConfig.ICM20602_SPI_Freq, 2); // reset
+                _s_spiWrite(Sensor_fd, ICM20602_SPI_Config_RESET, PrivateConfig.ICM20602_SPI_Freq, 2); // reset
                 usleep(500);
                 uint8_t ICM20602_SPI_Config_RESET2[2] = {0x68, 0x03};
-                _s_spiWrite(ICM20602_fd, ICM20602_SPI_Config_RESET2, PrivateConfig.ICM20602_SPI_Freq, 2); // BIT_ACC | BIT_TEMP reset
+                _s_spiWrite(Sensor_fd, ICM20602_SPI_Config_RESET2, PrivateConfig.ICM20602_SPI_Freq, 2); // BIT_ACC | BIT_TEMP reset
                 usleep(500);
                 uint8_t ICM20602_SPI_Config_RESET3[2] = {0x6b, 0x00};
-                _s_spiWrite(ICM20602_fd, ICM20602_SPI_Config_RESET3, PrivateConfig.ICM20602_SPI_Freq, 2); // reset
+                _s_spiWrite(Sensor_fd, ICM20602_SPI_Config_RESET3, PrivateConfig.ICM20602_SPI_Freq, 2); // reset
                 usleep(500);
                 uint8_t ICM20602_SPI_Config_RESET4[2] = {0x6b, 0x01};
-                _s_spiWrite(ICM20602_fd, ICM20602_SPI_Config_RESET4, PrivateConfig.ICM20602_SPI_Freq, 2); // reset
+                _s_spiWrite(Sensor_fd, ICM20602_SPI_Config_RESET4, PrivateConfig.ICM20602_SPI_Freq, 2); // reset
                 usleep(1000);
                 uint8_t ICM20602_SPI_Config_RESET5[2] = {0X6C, 0x00};
-                _s_spiWrite(ICM20602_fd, ICM20602_SPI_Config_RESET4, PrivateConfig.ICM20602_SPI_Freq, 2); //  acc | gyro on
+                _s_spiWrite(Sensor_fd, ICM20602_SPI_Config_RESET4, PrivateConfig.ICM20602_SPI_Freq, 2); //  acc | gyro on
                 usleep(1000);
 
-                uint8_t ICM20602_SPI_Config_ALPF[2] = {0x1d, 0x00};                                     // FChoice 1, DLPF 3 , dlpf cut off 44.8hz for accel is 0x03, but now 0x00 is not apply accel hardware
-                _s_spiWrite(ICM20602_fd, ICM20602_SPI_Config_ALPF, PrivateConfig.ICM20602_SPI_Freq, 2); // Accel2
+                uint8_t ICM20602_SPI_Config_ALPF[2] = {0x1d, 0x00};                                   // FChoice 1, DLPF 3 , dlpf cut off 44.8hz for accel is 0x03, but now 0x00 is not apply accel hardware
+                _s_spiWrite(Sensor_fd, ICM20602_SPI_Config_ALPF, PrivateConfig.ICM20602_SPI_Freq, 2); // Accel2
                 usleep(15);
-                uint8_t ICM20602_SPI_Config_Acce[2] = {0x1c, 0x18};                                     // Full AccelScale +- 16g
-                _s_spiWrite(ICM20602_fd, ICM20602_SPI_Config_Acce, PrivateConfig.ICM20602_SPI_Freq, 2); // Accel
+                uint8_t ICM20602_SPI_Config_Acce[2] = {0x1c, 0x18};                                   // Full AccelScale +- 16g
+                _s_spiWrite(Sensor_fd, ICM20602_SPI_Config_Acce, PrivateConfig.ICM20602_SPI_Freq, 2); // Accel
                 usleep(15);
-                uint8_t ICM20602_SPI_Config_Gyro[2] = {0x1b, 0x18};                                     // Full GyroScale +-2000dps, dlpf 250hz
-                _s_spiWrite(ICM20602_fd, ICM20602_SPI_Config_Gyro, PrivateConfig.ICM20602_SPI_Freq, 2); // Gryo
+                uint8_t ICM20602_SPI_Config_Gyro[2] = {0x1b, 0x18};                                   // Full GyroScale +-2000dps, dlpf 250hz
+                _s_spiWrite(Sensor_fd, ICM20602_SPI_Config_Gyro, PrivateConfig.ICM20602_SPI_Freq, 2); // Gryo
                 usleep(15);
 
-                uint8_t ICM20602_SPI_Config_GLPF[2] = {0x1a, 0x00};                                     // DLPF_CFG is 000 , with Gyro dlpf is 250hz
-                _s_spiWrite(ICM20602_fd, ICM20602_SPI_Config_GLPF, PrivateConfig.ICM20602_SPI_Freq, 2); // config
+                uint8_t ICM20602_SPI_Config_GLPF[2] = {0x1a, 0x00};                                   // DLPF_CFG is 000 , with Gyro dlpf is 250hz
+                _s_spiWrite(Sensor_fd, ICM20602_SPI_Config_GLPF, PrivateConfig.ICM20602_SPI_Freq, 2); // config
                 usleep(15);
 
                 // uint8_t ICM20602_SPI_Config_INTC[2] = {0x37, 0x22};
-                // _s_spiWrite(ICM20602_fd, ICM20602_SPI_Config_INTC, PrivateConfig.ICM20602_SPI_Freq, 2);
+                // _s_spiWrite(Sensor_fd, ICM20602_SPI_Config_INTC, PrivateConfig.ICM20602_SPI_Freq, 2);
                 // usleep(500);
                 // uint8_t ICM20602_SPI_Config_INTE[2] = {0x38, 0x01};
-                // _s_spiWrite(ICM20602_fd, ICM20602_SPI_Config_INTE, PrivateConfig.ICM20602_SPI_Freq, 2);
+                // _s_spiWrite(Sensor_fd, ICM20602_SPI_Config_INTE, PrivateConfig.ICM20602_SPI_Freq, 2);
                 // usleep(500);
             }
             else if (PrivateConfig.ICMType == ICMTypeI2C)
@@ -762,86 +771,90 @@ private:
             // double OutputSpeedCal = (ICM_250HZ_LPF_SPEED / (float)PrivateConfig.TargetFreqency) - 1.f;
             if (PrivateConfig.ICMType == ICMTypeSPI)
             {
-                ICM42605_fd = _s_spiOpen(PrivateConfig.ICMSPIChannel, PrivateConfig.ICM42605_SPI_Freq, 0);
-                if (ICM42605_fd < 0)
+                Sensor_fd = _s_spiOpen(PrivateConfig.ICMSPIChannel, PrivateConfig.ICM42605_SPI_Freq, 0);
+                if (Sensor_fd < 0)
                     throw std::invalid_argument("[SPI] ICM device can't open");
                 uint8_t ICM42605_SPI_Config_WHOAMI[2] = {0xf5, 0x00};
-                _s_spiXfer(ICM42605_fd, ICM42605_SPI_Config_WHOAMI, ICM42605_SPI_Config_WHOAMI, PrivateConfig.ICM42605_SPI_Freq, 2);
+                _s_spiXfer(Sensor_fd, ICM42605_SPI_Config_WHOAMI, ICM42605_SPI_Config_WHOAMI, PrivateConfig.ICM42605_SPI_Freq, 2);
                 PrivateData.DeviceType = ICM42605_SPI_Config_WHOAMI[1];
                 std::cout << "Device Type: " << std::dec << static_cast<int>(PrivateData.DeviceType) << std::endl;
 
                 //---------------------reset--------------------------//
                 uint8_t ICM42605_SPI_Config_RESET[2] = {0x76, 0x00};
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_RESET, PrivateConfig.ICM42605_SPI_Freq, 2); // bank0
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_RESET, PrivateConfig.ICM42605_SPI_Freq, 2); // bank0
                 usleep(500);
                 uint8_t ICM42605_SPI_Config_RESET2[2] = {0x11, 0x01};
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_RESET2, PrivateConfig.ICM42605_SPI_Freq, 2); // soft reset
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_RESET2, PrivateConfig.ICM42605_SPI_Freq, 2); // soft reset
                 usleep(500);
 
                 uint8_t ICM42605_SPI_Config_CONF[2] = {0x76, 0x01};
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_CONF, PrivateConfig.ICM42605_SPI_Freq, 2); // bank1
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_CONF, PrivateConfig.ICM42605_SPI_Freq, 2); // bank1
                 usleep(500);
                 uint8_t ICM42605_SPI_Config_CONF2[2] = {0x11, 0x02};
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_CONF2, PrivateConfig.ICM42605_SPI_Freq, 2); // 4 wire spi mode
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_CONF2, PrivateConfig.ICM42605_SPI_Freq, 2); // 4 wire spi mode
                 usleep(500);
 
                 uint8_t ICM42605_SPI_Config_CONF3[2] = {0x76, 0x00};
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_CONF3, PrivateConfig.ICM42605_SPI_Freq, 2); // bank0
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_CONF3, PrivateConfig.ICM42605_SPI_Freq, 2); // bank0
                 usleep(500);
                 uint8_t ICM42605_SPI_Config_CONF4[2] = {0x16, 0x40};
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_CONF4, PrivateConfig.ICM42605_SPI_Freq, 2); // Stream-to-FIFO Mode
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_CONF4, PrivateConfig.ICM42605_SPI_Freq, 2); // Stream-to-FIFO Mode
                 usleep(500);
                 uint8_t ICM42605_SPI_Config_CONF5[2] = {0xe5, 0x00};
-                _s_spiXfer(ICM42605_fd, ICM42605_SPI_Config_CONF5, ICM42605_SPI_Config_CONF5, PrivateConfig.ICM42605_SPI_Freq, 2);
+                _s_spiXfer(Sensor_fd, ICM42605_SPI_Config_CONF5, ICM42605_SPI_Config_CONF5, PrivateConfig.ICM42605_SPI_Freq, 2);
                 usleep(500);
                 uint8_t ICM42605_SPI_Config_CONF6[2] = {0x60, 0x00};
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_CONF6, PrivateConfig.ICM42605_SPI_Freq, 2); // watermark
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_CONF6, PrivateConfig.ICM42605_SPI_Freq, 2); // watermark
                 usleep(500);
                 uint8_t ICM42605_SPI_Config_CONF7[2] = {0x61, 0x02};
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_CONF7, PrivateConfig.ICM42605_SPI_Freq, 2); // watermark
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_CONF7, PrivateConfig.ICM42605_SPI_Freq, 2); // watermark
                 usleep(500);
                 uint8_t ICM42605_SPI_Config_CONF8[2] = {0x65, ICM42605_SPI_Config_CONF5[1]};
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_CONF8, PrivateConfig.ICM42605_SPI_Freq, 2);
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_CONF8, PrivateConfig.ICM42605_SPI_Freq, 2);
                 usleep(500);
                 uint8_t ICM42605_SPI_Config_CONF9[2] = {0x5f, 0x63};
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_CONF9, PrivateConfig.ICM42605_SPI_Freq, 2);
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_CONF9, PrivateConfig.ICM42605_SPI_Freq, 2);
                 usleep(500);
                 uint8_t ICM42605_SPI_Config_CONF10[2] = {0x5f, 0x63};
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_CONF10, PrivateConfig.ICM42605_SPI_Freq, 2); // Enable the accel and gyro to the FIFO
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_CONF10, PrivateConfig.ICM42605_SPI_Freq, 2); // Enable the accel and gyro to the FIFO
                 usleep(500);
 
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_CONF3, PrivateConfig.ICM42605_SPI_Freq, 2); // bank0
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_CONF3, PrivateConfig.ICM42605_SPI_Freq, 2); // bank0
                 usleep(500);
                 uint8_t ICM42605_SPI_Config_CONF11[2] = {0x14, 0x36};
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_CONF11, PrivateConfig.ICM42605_SPI_Freq, 2);
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_CONF11, PrivateConfig.ICM42605_SPI_Freq, 2);
                 usleep(500);
 
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_CONF3, PrivateConfig.ICM42605_SPI_Freq, 2); // bank0
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_CONF3, PrivateConfig.ICM42605_SPI_Freq, 2); // bank0
                 usleep(500);
                 uint8_t ICM42605_SPI_Config_CON12[2] = {0xe5, 0x00};
-                _s_spiXfer(ICM42605_fd, ICM42605_SPI_Config_CON12, ICM42605_SPI_Config_CON12, PrivateConfig.ICM42605_SPI_Freq, 2);
+                _s_spiXfer(Sensor_fd, ICM42605_SPI_Config_CON12, ICM42605_SPI_Config_CON12, PrivateConfig.ICM42605_SPI_Freq, 2);
                 usleep(500);
                 ICM42605_SPI_Config_CON12[1] |= (1 << 2); // FIFO_THS_INT1_ENABLE
                 uint8_t ICM42605_SPI_Config_CONF13[2] = {0x65, ICM42605_SPI_Config_CON12[1]};
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_CONF11, PrivateConfig.ICM42605_SPI_Freq, 2);
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_CONF11, PrivateConfig.ICM42605_SPI_Freq, 2);
                 usleep(500);
 
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_CONF3, PrivateConfig.ICM42605_SPI_Freq, 2); // bank0
-                usleep(500);
-                uint8_t ICM42605_SPI_Config_Accel[2] = {0x50, 0x0f};
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_Accel, PrivateConfig.ICM42605_SPI_Freq, 2); // 16g || 500hz lp
+                uint8_t ICM42605_SPI_Config_CON13[2] = {0x2d, 0x08};
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_CON13, PrivateConfig.ICM42605_SPI_Freq, 2); // DATA_RDY_INT
                 usleep(500);
 
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_CONF3, PrivateConfig.ICM42605_SPI_Freq, 2); // bank0
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_CONF3, PrivateConfig.ICM42605_SPI_Freq, 2); // bank0
                 usleep(500);
-                uint8_t ICM42605_SPI_Config_Gyro[2] = {0x4f, 0x0f};
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_Gyro, PrivateConfig.ICM42605_SPI_Freq, 2); // 2000dps || 2khz
+                uint8_t ICM42605_SPI_Config_Accel[2] = {0x50, 0x07};
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_Accel, PrivateConfig.ICM42605_SPI_Freq, 2); // 16g || 500hz lp
                 usleep(500);
 
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_CONF3, PrivateConfig.ICM42605_SPI_Freq, 2); // bank0
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_CONF3, PrivateConfig.ICM42605_SPI_Freq, 2); // bank0
+                usleep(500);
+                uint8_t ICM42605_SPI_Config_Gyro[2] = {0x4f, 0x07};
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_Gyro, PrivateConfig.ICM42605_SPI_Freq, 2); // 2000dps || 2khz
+                usleep(500);
+
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_CONF3, PrivateConfig.ICM42605_SPI_Freq, 2); // bank0
                 usleep(500);
                 uint8_t ICM42605_SPI_Config_Tem[2] = {0x4e, 0x0f};
-                _s_spiWrite(ICM42605_fd, ICM42605_SPI_Config_Tem, PrivateConfig.ICM42605_SPI_Freq, 2); // Accel on in LNM ||  Gyro on in LNM
+                _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_Tem, PrivateConfig.ICM42605_SPI_Freq, 2); // Accel on in LNM ||  Gyro on in LNM
                 usleep(500);
             }
             else if (PrivateConfig.ICMType == ICMTypeI2C)
@@ -860,19 +873,19 @@ private:
         {
             uint8_t Tmp_MPU9250_SPI_BufferX[2] = {0};
             Tmp_MPU9250_SPI_BufferX[0] = (PrivateConfig.GyroScope == MPU9250) ? 0xBA : ((PrivateConfig.GyroScope == ICM20602) ? 0xBA : ((PrivateConfig.GyroScope == ICM42605) ? 0xAD : 0XBA));
-            _s_spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_BufferX, Tmp_MPU9250_SPI_BufferX, PrivateConfig.MPU9250_SPI_Freq, 2);
-            uint8_t DATA_RDY_INT = (PrivateConfig.GyroScope == MPU9250) ? 0x01 : ((PrivateConfig.GyroScope == ICM20602) ? 0x01 : ((PrivateConfig.GyroScope == ICM42605) ? 0x08 : 0X01));
-            if (Tmp_MPU9250_SPI_BufferX[1] & DATA_RDY_INT)
+            _s_spiXfer(Sensor_fd, Tmp_MPU9250_SPI_BufferX, Tmp_MPU9250_SPI_BufferX, PrivateConfig.MPU9250_SPI_Freq, 2);
+            uint8_t DATA_RDY_INT_REGISTER = (PrivateConfig.GyroScope == MPU9250) ? 0x01 : ((PrivateConfig.GyroScope == ICM20602) ? 0x01 : ((PrivateConfig.GyroScope == ICM42605) ? 0x00 : 0X01));
+            uint8_t DATA_RDY_INT = (PrivateConfig.GyroScope == MPU9250) ? (Tmp_MPU9250_SPI_BufferX[1] & DATA_RDY_INT_REGISTER) : ((PrivateConfig.GyroScope == ICM20602) ? (Tmp_MPU9250_SPI_BufferX[1] & DATA_RDY_INT_REGISTER) : ((PrivateConfig.GyroScope == ICM42605) ? Tmp_MPU9250_SPI_BufferX[1] == DATA_RDY_INT_REGISTER : 0x00));
+            if (DATA_RDY_INT)
             {
                 PrivateData._uORB_MPU9250_IMUUpdateTime = GetTimestamp() - LastUpdate;
                 LastUpdate = GetTimestamp();
-
                 uint8_t Tmp_MPU9250_SPI_Buffer[8] = {0};
                 uint8_t Tmp_MPU9250_SPI_Bufferout[8] = {0};
                 Tmp_MPU9250_SPI_Buffer[0] = (PrivateConfig.GyroScope == MPU9250) ? 0xBB : ((PrivateConfig.GyroScope == ICM20602) ? 0xBB : ((PrivateConfig.GyroScope == ICM42605) ? 0x9f : 0XBB));
                 if (PrivateData._uORB_MPU9250_AccelCountDown >= (PrivateConfig.TargetFreqency / PrivateConfig.AccTargetFreqency))
                 {
-                    _s_spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_Buffer, Tmp_MPU9250_SPI_Bufferout, PrivateConfig.MPU9250_SPI_Freq, 8);
+                    _s_spiXfer(Sensor_fd, Tmp_MPU9250_SPI_Buffer, Tmp_MPU9250_SPI_Bufferout, PrivateConfig.MPU9250_SPI_Freq, 8);
                     int Tmp_AX = (short)((int)Tmp_MPU9250_SPI_Bufferout[1] << 8 | (int)Tmp_MPU9250_SPI_Bufferout[2]);
                     int Tmp_AY = (short)((int)Tmp_MPU9250_SPI_Bufferout[3] << 8 | (int)Tmp_MPU9250_SPI_Bufferout[4]);
                     int Tmp_AZ = (short)((int)Tmp_MPU9250_SPI_Bufferout[5] << 8 | (int)Tmp_MPU9250_SPI_Bufferout[6]);
@@ -895,7 +908,7 @@ private:
                     uint8_t Tmp_MPU9250_SPI_GBuffer[8] = {0};
                     uint8_t Tmp_MPU9250_SPI_GBufferout[8] = {0};
                     Tmp_MPU9250_SPI_GBuffer[0] = (PrivateConfig.GyroScope == MPU9250) ? 0xC3 : ((PrivateConfig.GyroScope == ICM20602) ? 0xC3 : ((PrivateConfig.GyroScope == ICM42605) ? 0xa5 : 0xC3));
-                    _s_spiXfer(MPU9250_fd, Tmp_MPU9250_SPI_GBuffer, Tmp_MPU9250_SPI_GBufferout, PrivateConfig.MPU9250_SPI_Freq, 8);
+                    _s_spiXfer(Sensor_fd, Tmp_MPU9250_SPI_GBuffer, Tmp_MPU9250_SPI_GBufferout, PrivateConfig.MPU9250_SPI_Freq, 8);
                     int Tmp_GX = (short)((int)Tmp_MPU9250_SPI_GBufferout[1] << 8 | (int)Tmp_MPU9250_SPI_GBufferout[2]);
                     int Tmp_GY = (short)((int)Tmp_MPU9250_SPI_GBufferout[3] << 8 | (int)Tmp_MPU9250_SPI_GBufferout[4]);
                     int Tmp_GZ = (short)((int)Tmp_MPU9250_SPI_GBufferout[5] << 8 | (int)Tmp_MPU9250_SPI_GBufferout[6]);
@@ -1049,9 +1062,8 @@ private:
 
     int IMUstartuptime = 0;
 
-    int MPU9250_fd;
-    int ICM20602_fd;
-    int ICM42605_fd;
+    int Sensor_fd;
+
     float MPU9250_Gryo_LSB = MPU9250_GYRO_LSB;   // +-2000dps
     float MPU9250_Accel_LSB = MPU9250_ACCEL_LSB; //+-16g
     uint8_t Tmp_MPU9250_Buffer[20] = {0};
