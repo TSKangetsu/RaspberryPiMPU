@@ -226,11 +226,13 @@ int main(int argc, char *argv[])
             std::cout << "Setting UP MPU9250 ....";
             std::cout.flush();
             MPUConfig option;
-            option.MPUType = MPUTypeSPI;
             option.GyroScope = ICM20602;
             option.MPUSPIChannel = "/dev/spidev0.0";
+            option.ICMSPIChannel = "/dev/spidev0.0";
             option.MPUI2CAddress = 0x68;
             option.MPU9250_SPI_Freq = 1000 * 1000;
+            option.ICM20602_SPI_Freq = 1000 * 1000;
+            option.ICM42605_SPI_Freq = 1000 * 1000;
             option.TargetFreqency = 1000.f;
             option.GyroToAccelBeta = 0.2;
             option.GyroDynamicAnalyse = false;
