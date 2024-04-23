@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
             TimeMax = 500;
             MPUConfig option;
             option.MPUType = MPUTypeSPI;
-            option.GyroScope = ICM42605;
+            option.GyroScope = MPU9250;
             option.MPUSPIChannel = "/dev/spidev0.0";
             option.ICMSPIChannel = "/dev/spidev0.0";
             option.MPUI2CAddress = 0x68;
@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
             std::cout << "Setting UP MPU9250 ....";
             std::cout.flush();
             MPUConfig option;
-            option.GyroScope = ICM42605;
+            option.GyroScope = MPU9250;
             option.MPUSPIChannel = "/dev/spidev0.0";
             option.ICMSPIChannel = "/dev/spidev0.0";
             option.MPUI2CAddress = 0x68;

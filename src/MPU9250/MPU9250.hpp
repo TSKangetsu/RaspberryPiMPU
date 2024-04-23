@@ -293,11 +293,11 @@ public:
         PrivateData._flag_MPU9250_A_TR_Cali = AccelCaliData[MPUAccelTRIM_Roll];
         PrivateData._flag_MPU9250_A_TP_Cali = AccelCaliData[MPUAccelTRIMPitch];
 
-        for (int cali_count = 0; cali_count < IMU_CALI_MAX_LOOP; cali_count++)
-        {
-            MPUSensorsDataGet();
-            usleep((int)(1.f / (float)PrivateConfig.TargetFreqency * 1000000.f));
-        }
+        // for (int cali_count = 0; cali_count < IMU_CALI_MAX_LOOP; cali_count++)
+        // {
+        //     MPUSensorsDataGet();
+        //     usleep((int)(1.f / (float)PrivateConfig.TargetFreqency * 1000000.f));
+        // }
 
         double _Tmp_Gryo_X_Cali = 0;
         double _Tmp_Gryo_Y_Cali = 0;
@@ -306,7 +306,6 @@ public:
         PrivateData._flag_MPU9250_G_X_Cali = 0;
         PrivateData._flag_MPU9250_G_Y_Cali = 0;
         PrivateData._flag_MPU9250_G_Z_Cali = 0;
-
 
         for (int cali_count = 0; cali_count < IMU_CALI_MAX_LOOP; cali_count++)
         {
@@ -874,10 +873,13 @@ private:
             uint8_t Tmp_MPU9250_SPI_BufferX[2] = {0};
             Tmp_MPU9250_SPI_BufferX[0] = (PrivateConfig.GyroScope == MPU9250) ? 0xBA : ((PrivateConfig.GyroScope == ICM20602) ? 0xBA : ((PrivateConfig.GyroScope == ICM42605) ? 0xAD : 0XBA));
             _s_spiXfer(Sensor_fd, Tmp_MPU9250_SPI_BufferX, Tmp_MPU9250_SPI_BufferX, PrivateConfig.MPU9250_SPI_Freq, 2);
-            uint8_t DATA_RDY_INT_REGISTER = (PrivateConfig.GyroScope == MPU9250) ? 0x01 : ((PrivateConfig.GyroScope == ICM20602) ? 0x01 : ((PrivateConfig.GyroScope == ICM42605) ? 0x00 : 0X01));
-            uint8_t DATA_RDY_INT = (PrivateConfig.GyroScope == MPU9250) ? (Tmp_MPU9250_SPI_BufferX[1] & DATA_RDY_INT_REGISTER) : ((PrivateConfig.GyroScope == ICM20602) ? (Tmp_MPU9250_SPI_BufferX[1] & DATA_RDY_INT_REGISTER) : ((PrivateConfig.GyroScope == ICM42605) ? Tmp_MPU9250_SPI_BufferX[1] == DATA_RDY_INT_REGISTER : 0x00));
+            uint8_t DATA_RDY_INT_REGISTER = (PrivateConfig.GyroScope == MPU9250) ? 0x01 : ((PrivateConfig.GyroScope == ICM20602) ? 0x01 : ((PrivateConfig.GyroScope == ICM42605) ? 0x08 : 0X01));
+            uint8_t DATA_RDY_INT = (PrivateConfig.GyroScope == MPU9250) ? (Tmp_MPU9250_SPI_BufferX[1] & DATA_RDY_INT_REGISTER) : ((PrivateConfig.GyroScope == ICM20602) ? (Tmp_MPU9250_SPI_BufferX[1] & DATA_RDY_INT_REGISTER) : ((PrivateConfig.GyroScope & ICM42605) ? Tmp_MPU9250_SPI_BufferX[1] & DATA_RDY_INT_REGISTER : 0x00));
+
             if (DATA_RDY_INT)
             {
+                std::cout << "Tmp_MPU9250_SPI_BufferX[1]: " << std::dec << static_cast<int>(DATA_RDY_INT) << std::endl;
+
                 PrivateData._uORB_MPU9250_IMUUpdateTime = GetTimestamp() - LastUpdate;
                 LastUpdate = GetTimestamp();
                 uint8_t Tmp_MPU9250_SPI_Buffer[8] = {0};
@@ -922,6 +924,9 @@ private:
                     PrivateData._uORB_MPU9250_G_Y = Tmp_G2Y * cos(DEG2RAD((PrivateConfig.MPU_Flip__Roll))) + Tmp_G3Z * sin(DEG2RAD((180 + PrivateConfig.MPU_Flip__Roll)));
                     PrivateData._uORB_MPU9250_G_Z = Tmp_G3Z * cos(DEG2RAD((PrivateConfig.MPU_Flip__Roll))) + Tmp_G2Y * sin(DEG2RAD((PrivateConfig.MPU_Flip__Roll)));
                     PrivateData._uORB_MPU9250_G_X = Tmp_G3X;
+                    std::cout << "PrivateData._uORB_MPU9250_G_Y " << std::dec << PrivateData._uORB_MPU9250_G_Y << std::endl;
+                    std::cout << "PrivateData._uORB_MPU9250_G_Z " << std::dec << PrivateData._uORB_MPU9250_G_Z << std::endl;
+                    std::cout << "PrivateData._uORB_MPU9250_G_X: " << std::dec << PrivateData._uORB_MPU9250_G_X << std::endl;
                     //
                 }
             }
