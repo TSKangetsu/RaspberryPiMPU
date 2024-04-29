@@ -854,7 +854,7 @@ private:
                 usleep(500);
                 uint8_t ICM42605_SPI_Config_Tem[2] = {0x4e, 0x0f};
                 _s_spiWrite(Sensor_fd, ICM42605_SPI_Config_Tem, PrivateConfig.ICM42605_SPI_Freq, 2); // Accel on in LNM ||  Gyro on in LNM
-                usleep(500);
+                usleep(200000);
             }
             else if (PrivateConfig.ICMType == ICMTypeI2C)
             {
