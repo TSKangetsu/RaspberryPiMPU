@@ -3,7 +3,8 @@
 #include <iostream>
 #include <iomanip>
 #include <unistd.h>
-#include "src/MPU9250/MPU9250.hpp"
+#include "src/MPUProcess.hpp"
+#include "src/MPU.hpp"
 
 void configWrite(const char *configDir, const char *Target, double obj);
 double configSettle(const char *configDir, const char *Target);
@@ -41,8 +42,6 @@ int main(int argc, char *argv[])
             option.ICMSPIChannel = "/dev/spidev0.0";
             option.MPUI2CAddress = 0x68;
             option.MPU9250_SPI_Freq = 1000 * 1000;
-            option.ICM20602_SPI_Freq = 1000 * 1000;
-            option.ICM42605_SPI_Freq = 1000 * 1000;
             option.TargetFreqency = 1000.f;
             option.GyroToAccelBeta = 0.2;
             option.GyroDynamicAnalyse = false;
@@ -109,13 +108,11 @@ int main(int argc, char *argv[])
             std::cout << "Setting UP MPU9250 ....";
             std::cout.flush();
             MPUConfig option;
-            option.GyroScope = ICM42605;
+            option.GyroScope = MPU9250;
             option.MPUSPIChannel = "/dev/spidev0.0";
             option.ICMSPIChannel = "/dev/spidev0.0";
             option.MPUI2CAddress = 0x68;
             option.MPU9250_SPI_Freq = 1000 * 1000;
-            option.ICM20602_SPI_Freq = 1000 * 1000;
-            option.ICM42605_SPI_Freq = 1000 * 1000;
             option.TargetFreqency = 1000.f;
             option.GyroToAccelBeta = 0.2;
             option.GyroDynamicAnalyse = false;
