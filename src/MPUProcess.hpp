@@ -1,12 +1,4 @@
-#include <math.h>
-#include <vector>
-#include <thread>
-#include <unistd.h>
-#include <sys/time.h>
-#include <signal.h>
-#include <iostream>
-#include <stdexcept>
-
+#pragma once
 #include "./filter.h"
 #include "./FFTPlugin.hpp"
 #include "./MadgwickAHRS.hpp"
@@ -509,72 +501,20 @@ public:
 private:
     inline void IMUSensorsDataRead()
     {
-        if (PrivateConfig.MPUType == MPUTypeI2C)
+        PrivateData._uORB_MPU9250_IMUUpdateTime = GetTimestamp() - LastUpdate;
+        LastUpdate = GetTimestamp();
+        switch (PrivateConfig.GyroScope)
         {
-            //
-        }
-        else if (PrivateConfig.MPUType == MPUTypeSPI)
-        {
-            uint8_t Tmp_MPU9250_SPI_BufferX[2] = {0};
-            Tmp_MPU9250_SPI_BufferX[0] = (PrivateConfig.GyroScope == MPU9250) ? 0xBA : ((PrivateConfig.GyroScope == ICM20602) ? 0xBA : ((PrivateConfig.GyroScope == ICM42605) ? 0xAD : 0XBA));
-            _s_spiXfer(Sensor_fd, Tmp_MPU9250_SPI_BufferX, Tmp_MPU9250_SPI_BufferX, PrivateConfig.MPU9250_SPI_Freq, 2);
-            uint8_t DATA_RDY_INT_REGISTER = (PrivateConfig.GyroScope == MPU9250) ? 0x01 : ((PrivateConfig.GyroScope == ICM20602) ? 0x01 : ((PrivateConfig.GyroScope == ICM42605) ? 0x08 : 0X01));
-            uint8_t DATA_RDY_INT = (PrivateConfig.GyroScope == MPU9250) ? (Tmp_MPU9250_SPI_BufferX[1] & DATA_RDY_INT_REGISTER) : ((PrivateConfig.GyroScope == ICM20602) ? (Tmp_MPU9250_SPI_BufferX[1] & DATA_RDY_INT_REGISTER) : ((PrivateConfig.GyroScope & ICM42605) ? Tmp_MPU9250_SPI_BufferX[1] & DATA_RDY_INT_REGISTER : 0x00));
+        case MPU9250:
+            MPU9250DataRead(PrivateConfig, PrivateData, Sensor_fd);
+            break;
 
-            if (DATA_RDY_INT)
-            {
-                // std::cout << "Tmp_MPU9250_SPI_BufferX[1]: " << std::dec << static_cast<int>(DATA_RDY_INT) << std::endl;
-
-                PrivateData._uORB_MPU9250_IMUUpdateTime = GetTimestamp() - LastUpdate;
-                LastUpdate = GetTimestamp();
-                uint8_t Tmp_MPU9250_SPI_Buffer[8] = {0};
-                uint8_t Tmp_MPU9250_SPI_Bufferout[8] = {0};
-                Tmp_MPU9250_SPI_Buffer[0] = (PrivateConfig.GyroScope == MPU9250) ? 0xBB : ((PrivateConfig.GyroScope == ICM20602) ? 0xBB : ((PrivateConfig.GyroScope == ICM42605) ? 0x9f : 0XBB));
-                if (PrivateData._uORB_MPU9250_AccelCountDown >= (PrivateConfig.TargetFreqency / PrivateConfig.AccTargetFreqency))
-                {
-                    _s_spiXfer(Sensor_fd, Tmp_MPU9250_SPI_Buffer, Tmp_MPU9250_SPI_Bufferout, PrivateConfig.MPU9250_SPI_Freq, 8);
-                    int Tmp_AX = (short)((int)Tmp_MPU9250_SPI_Bufferout[1] << 8 | (int)Tmp_MPU9250_SPI_Bufferout[2]);
-                    int Tmp_AY = (short)((int)Tmp_MPU9250_SPI_Bufferout[3] << 8 | (int)Tmp_MPU9250_SPI_Bufferout[4]);
-                    int Tmp_AZ = (short)((int)Tmp_MPU9250_SPI_Bufferout[5] << 8 | (int)Tmp_MPU9250_SPI_Bufferout[6]);
-                    // Step 1: rotate Yaw
-                    int Tmp_A2X = Tmp_AX * cos(DEG2RAD((PrivateConfig.MPU_Flip___Yaw))) + Tmp_AY * sin(DEG2RAD((PrivateConfig.MPU_Flip___Yaw)));
-                    int Tmp_A2Y = Tmp_AY * cos(DEG2RAD((PrivateConfig.MPU_Flip___Yaw))) + Tmp_AX * sin(DEG2RAD((180 + PrivateConfig.MPU_Flip___Yaw)));
-                    // Step 2: rotate Pitch
-                    int Tmp_A3X = Tmp_A2X * cos(DEG2RAD(PrivateConfig.MPU_Flip_Pitch)) + Tmp_AZ * sin(DEG2RAD((PrivateConfig.MPU_Flip_Pitch)));
-                    int Tmp_A3Z = Tmp_AZ * cos(DEG2RAD((PrivateConfig.MPU_Flip_Pitch))) + Tmp_A2X * sin(DEG2RAD((180 + PrivateConfig.MPU_Flip_Pitch)));
-                    // Step 3: rotate Roll
-                    PrivateData._uORB_MPU9250_A_Y = Tmp_A2Y * cos(DEG2RAD((PrivateConfig.MPU_Flip__Roll))) + Tmp_A3Z * sin(DEG2RAD((180 + PrivateConfig.MPU_Flip__Roll)));
-                    PrivateData._uORB_MPU9250_A_Z = Tmp_A3Z * cos(DEG2RAD((PrivateConfig.MPU_Flip__Roll))) + Tmp_A2Y * sin(DEG2RAD((PrivateConfig.MPU_Flip__Roll)));
-                    PrivateData._uORB_MPU9250_A_X = Tmp_A3X;
-                    //
-                    PrivateData._uORB_MPU9250_AccelCountDown = 0;
-                }
-                PrivateData._uORB_MPU9250_AccelCountDown++;
-
-                {
-                    uint8_t Tmp_MPU9250_SPI_GBuffer[8] = {0};
-                    uint8_t Tmp_MPU9250_SPI_GBufferout[8] = {0};
-                    Tmp_MPU9250_SPI_GBuffer[0] = (PrivateConfig.GyroScope == MPU9250) ? 0xC3 : ((PrivateConfig.GyroScope == ICM20602) ? 0xC3 : ((PrivateConfig.GyroScope == ICM42605) ? 0xa5 : 0xC3));
-                    _s_spiXfer(Sensor_fd, Tmp_MPU9250_SPI_GBuffer, Tmp_MPU9250_SPI_GBufferout, PrivateConfig.MPU9250_SPI_Freq, 8);
-                    int Tmp_GX = (short)((int)Tmp_MPU9250_SPI_GBufferout[1] << 8 | (int)Tmp_MPU9250_SPI_GBufferout[2]);
-                    int Tmp_GY = (short)((int)Tmp_MPU9250_SPI_GBufferout[3] << 8 | (int)Tmp_MPU9250_SPI_GBufferout[4]);
-                    int Tmp_GZ = (short)((int)Tmp_MPU9250_SPI_GBufferout[5] << 8 | (int)Tmp_MPU9250_SPI_GBufferout[6]);
-                    // Step 1: rotate Yaw
-                    int Tmp_G2X = Tmp_GX * cos(DEG2RAD((PrivateConfig.MPU_Flip___Yaw))) + Tmp_GY * sin(DEG2RAD((PrivateConfig.MPU_Flip___Yaw)));
-                    int Tmp_G2Y = Tmp_GY * cos(DEG2RAD((PrivateConfig.MPU_Flip___Yaw))) + Tmp_GX * sin(DEG2RAD((180 + PrivateConfig.MPU_Flip___Yaw)));
-                    // Step 2: rotate Pitch
-                    int Tmp_G3X = Tmp_G2X * cos(DEG2RAD(PrivateConfig.MPU_Flip_Pitch)) + Tmp_GZ * sin(DEG2RAD((PrivateConfig.MPU_Flip_Pitch)));
-                    int Tmp_G3Z = Tmp_GZ * cos(DEG2RAD((PrivateConfig.MPU_Flip_Pitch))) + Tmp_G2X * sin(DEG2RAD((180 + PrivateConfig.MPU_Flip_Pitch)));
-                    // Step 3: rotate Roll
-                    PrivateData._uORB_MPU9250_G_Y = Tmp_G2Y * cos(DEG2RAD((PrivateConfig.MPU_Flip__Roll))) + Tmp_G3Z * sin(DEG2RAD((180 + PrivateConfig.MPU_Flip__Roll)));
-                    PrivateData._uORB_MPU9250_G_Z = Tmp_G3Z * cos(DEG2RAD((PrivateConfig.MPU_Flip__Roll))) + Tmp_G2Y * sin(DEG2RAD((PrivateConfig.MPU_Flip__Roll)));
-                    PrivateData._uORB_MPU9250_G_X = Tmp_G3X;
-                    // std::cout << "PrivateData._uORB_MPU9250_G_Y " << std::dec << PrivateData._uORB_MPU9250_G_Y << std::endl;
-                    // std::cout << "PrivateData._uORB_MPU9250_G_Z " << std::dec << PrivateData._uORB_MPU9250_G_Z << std::endl;
-                    // std::cout << "PrivateData._uORB_MPU9250_G_X: " << std::dec << PrivateData._uORB_MPU9250_G_X << std::endl;
-                    //
-                }
-            }
+        case ICM20602:
+            ICM20602DataRead(PrivateConfig, PrivateData, Sensor_fd);
+            break;
+        case ICM42605:
+            ICM42605DataRead(PrivateConfig, PrivateData, Sensor_fd);
+            break;
         }
     }
 

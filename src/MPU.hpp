@@ -1,6 +1,17 @@
 #pragma once
+#include <math.h>
+#include <vector>
+#include <thread>
+#include <unistd.h>
+#include <sys/time.h>
+#include <signal.h>
+#include <iostream>
+#include <stdexcept>
+
+#include "./filter.h"
 #include "./_thirdparty/libeigen/Eigen/Dense"
 #include "./_thirdparty/libeigen/Eigen/LU"
+#include "FFTPlugin.hpp"
 
 #define MPU9250_ACCEL_LSB 2048.f
 #define MPU9250_GYRO_LSB 16.4
@@ -60,6 +71,7 @@
 #define MPU_250HZ_LPF_SPEED 8000.f
 #define MPUTypeI2C 0
 #define MPUTypeSPI 1
+
 struct MPUConfig
 {
     int MPUType = MPUTypeSPI;
@@ -162,3 +174,4 @@ struct MPUData
     int _uORB_MPU9250_AccelCountDown = 0;
     int _uORB_MPU9250_CalibrationCountDown = 0;
 };
+
