@@ -501,20 +501,65 @@ public:
 private:
     inline void IMUSensorsDataRead()
     {
-        PrivateData._uORB_MPU9250_IMUUpdateTime = GetTimestamp() - LastUpdate;
-        LastUpdate = GetTimestamp();
-        switch (PrivateConfig.GyroScope)
+        if (PrivateConfig.MPUType == MPUTypeI2C)
         {
-        case MPU9250:
-            MPU9250DataRead(PrivateConfig, PrivateData, Sensor_fd);
-            break;
+            //
+        }
+        else if (PrivateConfig.MPUType == MPUTypeSPI)
+        {
+            PrivateData._uORB_MPU9250_IMUUpdateTime = GetTimestamp() - LastUpdate;
+            LastUpdate = GetTimestamp();
+            int Six_Axis[6] = {0};
+            switch (PrivateConfig.GyroScope)
+            {
+            case MPU9250:
+                MPU9250DataSPIRead(Sensor_fd, Six_Axis, PrivateConfig.MPU9250_SPI_Freq);
+                break;
 
-        case ICM20602:
-            ICM20602DataRead(PrivateConfig, PrivateData, Sensor_fd);
-            break;
-        case ICM42605:
-            ICM42605DataRead(PrivateConfig, PrivateData, Sensor_fd);
-            break;
+            case ICM20602:
+                ICM20602DataSPIRead(Sensor_fd, Six_Axis, PrivateConfig.MPU9250_SPI_Freq);
+                break;
+            case ICM42605:
+                ICM42605DataSPIRead(Sensor_fd, Six_Axis, PrivateConfig.MPU9250_SPI_Freq);
+                break;
+            }
+            if (PrivateData._uORB_MPU9250_AccelCountDown >= (PrivateConfig.TargetFreqency / PrivateConfig.AccTargetFreqency))
+            {
+                int Tmp_AX = Six_Axis[0];
+                int Tmp_AY = Six_Axis[1];
+                int Tmp_AZ = Six_Axis[2];
+                // Step 1: rotate Yaw
+                int Tmp_A2X = Tmp_AX * cos(DEG2RAD((PrivateConfig.MPU_Flip___Yaw))) + Tmp_AY * sin(DEG2RAD((PrivateConfig.MPU_Flip___Yaw)));
+                int Tmp_A2Y = Tmp_AY * cos(DEG2RAD((PrivateConfig.MPU_Flip___Yaw))) + Tmp_AX * sin(DEG2RAD((180 + PrivateConfig.MPU_Flip___Yaw)));
+                // Step 2: rotate Pitch
+                int Tmp_A3X = Tmp_A2X * cos(DEG2RAD(PrivateConfig.MPU_Flip_Pitch)) + Tmp_AZ * sin(DEG2RAD((PrivateConfig.MPU_Flip_Pitch)));
+                int Tmp_A3Z = Tmp_AZ * cos(DEG2RAD((PrivateConfig.MPU_Flip_Pitch))) + Tmp_A2X * sin(DEG2RAD((180 + PrivateConfig.MPU_Flip_Pitch)));
+                // Step 3: rotate Roll
+                PrivateData._uORB_MPU9250_A_Y = Tmp_A2Y * cos(DEG2RAD((PrivateConfig.MPU_Flip__Roll))) + Tmp_A3Z * sin(DEG2RAD((180 + PrivateConfig.MPU_Flip__Roll)));
+                PrivateData._uORB_MPU9250_A_Z = Tmp_A3Z * cos(DEG2RAD((PrivateConfig.MPU_Flip__Roll))) + Tmp_A2Y * sin(DEG2RAD((PrivateConfig.MPU_Flip__Roll)));
+                PrivateData._uORB_MPU9250_A_X = Tmp_A3X;
+                //
+                PrivateData._uORB_MPU9250_AccelCountDown = 0;
+            }
+            PrivateData._uORB_MPU9250_AccelCountDown++;
+
+            {
+
+                int Tmp_GX = Six_Axis[3];
+                int Tmp_GY = Six_Axis[4];
+                int Tmp_GZ = Six_Axis[5];
+                // Step 1: rotate Yaw
+                int Tmp_G2X = Tmp_GX * cos(DEG2RAD((PrivateConfig.MPU_Flip___Yaw))) + Tmp_GY * sin(DEG2RAD((PrivateConfig.MPU_Flip___Yaw)));
+                int Tmp_G2Y = Tmp_GY * cos(DEG2RAD((PrivateConfig.MPU_Flip___Yaw))) + Tmp_GX * sin(DEG2RAD((180 + PrivateConfig.MPU_Flip___Yaw)));
+                // Step 2: rotate Pitch
+                int Tmp_G3X = Tmp_G2X * cos(DEG2RAD(PrivateConfig.MPU_Flip_Pitch)) + Tmp_GZ * sin(DEG2RAD((PrivateConfig.MPU_Flip_Pitch)));
+                int Tmp_G3Z = Tmp_GZ * cos(DEG2RAD((PrivateConfig.MPU_Flip_Pitch))) + Tmp_G2X * sin(DEG2RAD((180 + PrivateConfig.MPU_Flip_Pitch)));
+                // Step 3: rotate Roll
+                PrivateData._uORB_MPU9250_G_Y = Tmp_G2Y * cos(DEG2RAD((PrivateConfig.MPU_Flip__Roll))) + Tmp_G3Z * sin(DEG2RAD((180 + PrivateConfig.MPU_Flip__Roll)));
+                PrivateData._uORB_MPU9250_G_Z = Tmp_G3Z * cos(DEG2RAD((PrivateConfig.MPU_Flip__Roll))) + Tmp_G2Y * sin(DEG2RAD((PrivateConfig.MPU_Flip__Roll)));
+                PrivateData._uORB_MPU9250_G_X = Tmp_G3X;
+                //
+            }
         }
     }
 
