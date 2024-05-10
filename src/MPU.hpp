@@ -175,3 +175,12 @@ struct MPUData
     int _uORB_MPU9250_CalibrationCountDown = 0;
 };
 
+typedef enum
+{
+    Six_Axis_A_X,
+    Six_Axis_A_Y,
+    Six_Axis_A_Z,
+    Six_Axis_G_X,
+    Six_Axis_G_Y,
+    Six_Axis_G_Z
+} Six_Axis;
