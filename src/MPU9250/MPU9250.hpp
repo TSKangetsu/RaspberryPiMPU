@@ -800,7 +800,7 @@ private:
             GyroDynamicFFTCaculateCount--;
         }
 
-        if (FFTCountDown >= 16 && GyroDynamicFFTCaculateCount > 0)
+        if (FFTCountDown >= 16 && GyroDynamicFFTCaculateCount < 0)
         {
             FFTCountDown = 0;
             GyroDynamicFFTCaculateCount = 2;
