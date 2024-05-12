@@ -525,9 +525,9 @@ private:
             }
             if (PrivateData._uORB_MPU9250_AccelCountDown >= (PrivateConfig.TargetFreqency / PrivateConfig.AccTargetFreqency))
             {
-                int Tmp_AX = Six_Axis[Six_Axis_A_X];
-                int Tmp_AY = Six_Axis[Six_Axis_A_Y];
-                int Tmp_AZ = Six_Axis[Six_Axis_A_Z];
+                int Tmp_AX = Six_Axis[0];
+                int Tmp_AY = Six_Axis[1];
+                int Tmp_AZ = Six_Axis[2];
                 // Step 1: rotate Yaw
                 int Tmp_A2X = Tmp_AX * cos(DEG2RAD((PrivateConfig.MPU_Flip___Yaw))) + Tmp_AY * sin(DEG2RAD((PrivateConfig.MPU_Flip___Yaw)));
                 int Tmp_A2Y = Tmp_AY * cos(DEG2RAD((PrivateConfig.MPU_Flip___Yaw))) + Tmp_AX * sin(DEG2RAD((180 + PrivateConfig.MPU_Flip___Yaw)));
@@ -545,9 +545,9 @@ private:
 
             {
 
-                int Tmp_GX = Six_Axis[Six_Axis_G_X];
-                int Tmp_GY = Six_Axis[Six_Axis_G_Y];
-                int Tmp_GZ = Six_Axis[Six_Axis_G_Z];
+                int Tmp_GX = Six_Axis[3];
+                int Tmp_GY = Six_Axis[4];
+                int Tmp_GZ = Six_Axis[5];
                 // Step 1: rotate Yaw
                 int Tmp_G2X = Tmp_GX * cos(DEG2RAD((PrivateConfig.MPU_Flip___Yaw))) + Tmp_GY * sin(DEG2RAD((PrivateConfig.MPU_Flip___Yaw)));
                 int Tmp_G2Y = Tmp_GY * cos(DEG2RAD((PrivateConfig.MPU_Flip___Yaw))) + Tmp_GX * sin(DEG2RAD((180 + PrivateConfig.MPU_Flip___Yaw)));
@@ -706,7 +706,7 @@ private:
     int LastUpdate = 0;
     MPUData PrivateData;
     MPUConfig PrivateConfig;
-    Six_Axis Six_axis;
+    SensorType sensor;
     std::unique_ptr<MadgwickAHRS> AHRSSys;
     //
     int _Tmp_AHRS_MAG_X = 0;

@@ -64,10 +64,6 @@
 
 #define DEG2RAD(x) (x * PI / 180.f)
 
-#define MPU9250 0
-#define ICM20602 1
-#define ICM42605 2
-
 #define MPU_250HZ_LPF_SPEED 8000.f
 #define MPUTypeI2C 0
 #define MPUTypeSPI 1
@@ -106,7 +102,7 @@ struct MPUConfig
     int AccelFilterNotchCenterFreq = 0;
     int AccelFilterNotchCutOff = 0;
 
-    int GyroScope = MPU9250;
+    int GyroScope = 0;
 };
 
 struct MPUData
@@ -175,12 +171,8 @@ struct MPUData
     int _uORB_MPU9250_CalibrationCountDown = 0;
 };
 
-typedef enum
-{
-    Six_Axis_A_X,
-    Six_Axis_A_Y,
-    Six_Axis_A_Z,
-    Six_Axis_G_X,
-    Six_Axis_G_Y,
-    Six_Axis_G_Z
-} Six_Axis;
+typedef enum {
+    MPU9250 = 0,
+    ICM20602 = 1,
+    ICM42605 = 2
+} SensorType;

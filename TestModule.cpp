@@ -91,13 +91,12 @@ int main(int argc, char *argv[])
             {
                 std::cout << tmp[i] << " \n";
             }
-            std::string sensorName = (option.GyroScope == MPU9250) ? "MPU9250" : ((option.GyroScope == ICM20602) ? "ICM20602" : ((option.GyroScope == ICM42605) ? "ICM42605" : MPU9250));     
-            configWrite("./MPUCali.json", ("_flag_" + sensorName + "_A_X_Cali").c_str(), tmp[MPUAccelCaliX]);
-            configWrite("./MPUCali.json", ("_flag_" + sensorName + "_A_Y_Cali").c_str(), tmp[MPUAccelCaliY]);
-            configWrite("./MPUCali.json", ("_flag_" + sensorName + "_A_Z_Cali").c_str(), tmp[MPUAccelCaliZ]);
-            configWrite("./MPUCali.json", ("_flag_" + sensorName + "_A_X_Scal").c_str(), tmp[MPUAccelScalX]);
-            configWrite("./MPUCali.json", ("_flag_" + sensorName + "_A_Y_Scal").c_str(), tmp[MPUAccelScalY]);
-            configWrite("./MPUCali.json", ("_flag_" + sensorName + "_A_Z_Scal").c_str(), tmp[MPUAccelScalZ]);
+            configWrite("../MPUCali.json", "_flag_MPU9250_A_X_Cali", tmp[MPUAccelCaliX]);
+            configWrite("../MPUCali.json", "_flag_MPU9250_A_Y_Cali", tmp[MPUAccelCaliY]);
+            configWrite("../MPUCali.json", "_flag_MPU9250_A_Z_Cali", tmp[MPUAccelCaliZ]);
+            configWrite("../MPUCali.json", "_flag_MPU9250_A_X_Scal", tmp[MPUAccelScalX]);
+            configWrite("../MPUCali.json", "_flag_MPU9250_A_Y_Scal", tmp[MPUAccelScalY]);
+            configWrite("../MPUCali.json", "_flag_MPU9250_A_Z_Scal", tmp[MPUAccelScalZ]);
         }
         break;
         case 't':
@@ -133,13 +132,12 @@ int main(int argc, char *argv[])
             RPiMPU9250 *myMPUTest = new RPiMPU9250(option);
             std::cout << " Done!\n";
             //
-            std::string sensorName = (option.GyroScope == MPU9250) ? "MPU9250" : ((option.GyroScope == ICM20602) ? "ICM20602" : ((option.GyroScope == ICM42605) ? "ICM42605" : MPU9250));     
-            AccelCaliData[MPUAccelCaliX] = configSettle("./MPUCali.json", ("_flag_" + sensorName + "_A_X_Cali").c_str());
-            AccelCaliData[MPUAccelCaliY] = configSettle("./MPUCali.json", ("_flag_" + sensorName + "_A_Y_Cali").c_str());
-            AccelCaliData[MPUAccelCaliZ] = configSettle("./MPUCali.json", ("_flag_" + sensorName + "_A_Z_Cali").c_str());
-            AccelCaliData[MPUAccelScalX] = configSettle("./MPUCali.json", ("_flag_" + sensorName + "_A_X_Scal").c_str());
-            AccelCaliData[MPUAccelScalY] = configSettle("./MPUCali.json", ("_flag_" + sensorName + "_A_Y_Scal").c_str());
-            AccelCaliData[MPUAccelScalZ] = configSettle("./MPUCali.json", ("_flag_" + sensorName + "_A_Z_Scal").c_str());
+            AccelCaliData[MPUAccelCaliX] = configSettle("../MPUCali.json", "_flag_MPU9250_A_X_Cali");
+            AccelCaliData[MPUAccelCaliY] = configSettle("../MPUCali.json", "_flag_MPU9250_A_Y_Cali");
+            AccelCaliData[MPUAccelCaliZ] = configSettle("../MPUCali.json", "_flag_MPU9250_A_Z_Cali");
+            AccelCaliData[MPUAccelScalX] = configSettle("../MPUCali.json", "_flag_MPU9250_A_X_Scal");
+            AccelCaliData[MPUAccelScalY] = configSettle("../MPUCali.json", "_flag_MPU9250_A_Y_Scal");
+            AccelCaliData[MPUAccelScalZ] = configSettle("../MPUCali.json", "_flag_MPU9250_A_Z_Scal");
             AccelCaliData[MPUAccelTRIM_Roll] = 0;
             AccelCaliData[MPUAccelTRIMPitch] = 0;
             std::cout << "Calibration Gryo ......";
