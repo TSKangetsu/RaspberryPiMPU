@@ -3,7 +3,8 @@
 #include <iostream>
 #include <iomanip>
 #include <unistd.h>
-#include "src/MPU9250/MPU9250.hpp"
+#include "src/MPUProcess.hpp"
+#include "src/MPU.hpp"
 
 void configWrite(const char *configDir, const char *Target, double obj);
 double configSettle(const char *configDir, const char *Target);
@@ -26,7 +27,7 @@ int main(int argc, char *argv[])
     //
     MPUData myData;
     //
-    while ((argvs = getopt(argc, argv, "cth")) != -1)
+    while ((argvs = getopt(argc, argv, "cthsi")) != -1)
     {
         switch (argvs)
         {
@@ -36,7 +37,9 @@ int main(int argc, char *argv[])
             TimeMax = 500;
             MPUConfig option;
             option.MPUType = MPUTypeSPI;
+            option.GyroScope = MPU9250;
             option.MPUSPIChannel = "/dev/spidev0.0";
+            option.ICMSPIChannel = "/dev/spidev0.0";
             option.MPUI2CAddress = 0x68;
             option.MPU9250_SPI_Freq = 1000 * 1000;
             option.TargetFreqency = 1000.f;
@@ -88,15 +91,14 @@ int main(int argc, char *argv[])
             {
                 std::cout << tmp[i] << " \n";
             }
-            configWrite("../MPUCali.json", "_flag_MPU9250_A_X_Cali", tmp[MPUAccelCaliX]);
-            configWrite("../MPUCali.json", "_flag_MPU9250_A_Y_Cali", tmp[MPUAccelCaliY]);
-            configWrite("../MPUCali.json", "_flag_MPU9250_A_Z_Cali", tmp[MPUAccelCaliZ]);
-            configWrite("../MPUCali.json", "_flag_MPU9250_A_X_Scal", tmp[MPUAccelScalX]);
-            configWrite("../MPUCali.json", "_flag_MPU9250_A_Y_Scal", tmp[MPUAccelScalY]);
-            configWrite("../MPUCali.json", "_flag_MPU9250_A_Z_Scal", tmp[MPUAccelScalZ]);
+            configWrite("./MPUCali.json", "_flag_MPU9250_A_X_Cali", tmp[MPUAccelCaliX]);
+            configWrite("./MPUCali.json", "_flag_MPU9250_A_Y_Cali", tmp[MPUAccelCaliY]);
+            configWrite("./MPUCali.json", "_flag_MPU9250_A_Z_Cali", tmp[MPUAccelCaliZ]);
+            configWrite("./MPUCali.json", "_flag_MPU9250_A_X_Scal", tmp[MPUAccelScalX]);
+            configWrite("./MPUCali.json", "_flag_MPU9250_A_Y_Scal", tmp[MPUAccelScalY]);
+            configWrite("./MPUCali.json", "_flag_MPU9250_A_Z_Scal", tmp[MPUAccelScalZ]);
         }
         break;
-
         case 't':
         {
             double AccelCaliData[30];
@@ -105,8 +107,9 @@ int main(int argc, char *argv[])
             std::cout << "Setting UP MPU9250 ....";
             std::cout.flush();
             MPUConfig option;
-            option.MPUType = MPUTypeSPI;
+            option.GyroScope = MPU9250;
             option.MPUSPIChannel = "/dev/spidev0.0";
+            option.ICMSPIChannel = "/dev/spidev0.0";
             option.MPUI2CAddress = 0x68;
             option.MPU9250_SPI_Freq = 1000 * 1000;
             option.TargetFreqency = 1000.f;
@@ -129,12 +132,12 @@ int main(int argc, char *argv[])
             RPiMPU9250 *myMPUTest = new RPiMPU9250(option);
             std::cout << " Done!\n";
             //
-            AccelCaliData[MPUAccelCaliX] = configSettle("../MPUCali.json", "_flag_MPU9250_A_X_Cali");
-            AccelCaliData[MPUAccelCaliY] = configSettle("../MPUCali.json", "_flag_MPU9250_A_Y_Cali");
-            AccelCaliData[MPUAccelCaliZ] = configSettle("../MPUCali.json", "_flag_MPU9250_A_Z_Cali");
-            AccelCaliData[MPUAccelScalX] = configSettle("../MPUCali.json", "_flag_MPU9250_A_X_Scal");
-            AccelCaliData[MPUAccelScalY] = configSettle("../MPUCali.json", "_flag_MPU9250_A_Y_Scal");
-            AccelCaliData[MPUAccelScalZ] = configSettle("../MPUCali.json", "_flag_MPU9250_A_Z_Scal");
+            AccelCaliData[MPUAccelCaliX] = configSettle("./MPUCali.json", "_flag_MPU9250_A_X_Cali");
+            AccelCaliData[MPUAccelCaliY] = configSettle("./MPUCali.json", "_flag_MPU9250_A_Y_Cali");
+            AccelCaliData[MPUAccelCaliZ] = configSettle("./MPUCali.json", "_flag_MPU9250_A_Z_Cali");
+            AccelCaliData[MPUAccelScalX] = configSettle("./MPUCali.json", "_flag_MPU9250_A_X_Scal");
+            AccelCaliData[MPUAccelScalY] = configSettle("./MPUCali.json", "_flag_MPU9250_A_Y_Scal");
+            AccelCaliData[MPUAccelScalZ] = configSettle("./MPUCali.json", "_flag_MPU9250_A_Z_Scal");
             AccelCaliData[MPUAccelTRIM_Roll] = 0;
             AccelCaliData[MPUAccelTRIMPitch] = 0;
             std::cout << "Calibration Gryo ......";
