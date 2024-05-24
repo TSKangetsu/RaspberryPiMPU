@@ -1,17 +1,6 @@
 #pragma once
-#include <math.h>
-#include <vector>
-#include <thread>
-#include <unistd.h>
-#include <sys/time.h>
-#include <signal.h>
-#include <iostream>
-#include <stdexcept>
-
-#include "./filter.h"
-#include "./_thirdparty/libeigen/Eigen/Dense"
-#include "./_thirdparty/libeigen/Eigen/LU"
-#include "FFTPlugin.hpp"
+#include "_thirdparty/libeigen/Eigen/Dense"
+#include "_thirdparty/libeigen/Eigen/LU"
 
 #define MPU9250_ACCEL_LSB 2048.f
 #define MPU9250_GYRO_LSB 16.4
@@ -40,7 +29,9 @@
 #define FilterLPFBiquad 1
 
 #define FFTResolution 31.25
+#define FFTBINCOUNT 16
 #define GravityAccel 9.80665
+#define MPU_250HZ_LPF_SPEED 8000.f
 #define MPU_LOWHZ_LPF_SPEED 1000.f
 
 #define DYNAMIC_NOTCH_DEFAULT_CENTER_HZ 350.f
@@ -68,11 +59,17 @@
 #define MPUTypeI2C 0
 #define MPUTypeSPI 1
 
+enum SensorType
+{
+    MPU9250,
+    ICM20602,
+    ICM42605
+} SensorType_t;
+
 struct MPUConfig
 {
     int MPUType = MPUTypeSPI;
-    const char *MPUSPIChannel = "/dev/spidev0.0";
-    const char *ICMSPIChannel = "/dev/spidev0.0";
+    const char *GyroSPIChannel = "/dev/spidev0.0";
     uint8_t MPUI2CAddress = 0x68;
     int MPU9250_SPI_Freq = 400000;
     float MPU_Flip_Pitch = 0;
@@ -101,8 +98,7 @@ struct MPUConfig
     int AccelFilterCutOff = 30;
     int AccelFilterNotchCenterFreq = 0;
     int AccelFilterNotchCutOff = 0;
-
-    int GyroScope = 0;
+    SensorType GyroScope = SensorType::MPU9250;
 };
 
 struct MPUData
@@ -161,7 +157,9 @@ struct MPUData
     double _flag_MPU9250_A_TP_Cali = 0;
     double _flag_MPU9250_A_TR_Cali = 0;
 
-    float FFTSampleBox[3][25] = {{0}};
+    // float FFTSampleBox[3][25] = {{0}};
+    int fftindexs[3] = {0};
+    std::vector<std::vector<float>> FFTSampleBox;
     float _uORB_Gyro_Dynamic_NotchCenterHZ[3] = {350, 350, 350};
     Eigen::Matrix3d _uORB_MPU9250_RotationMatrix;
     Eigen::Quaternion<double> _uORB_MPU9250_Quaternion;
@@ -170,9 +168,3 @@ struct MPUData
     int _uORB_MPU9250_AccelCountDown = 0;
     int _uORB_MPU9250_CalibrationCountDown = 0;
 };
-
-typedef enum {
-    MPU9250 = 0,
-    ICM20602 = 1,
-    ICM42605 = 2
-} SensorType;

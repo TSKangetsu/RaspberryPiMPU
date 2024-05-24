@@ -1,18 +1,30 @@
 #pragma once
-#include "./filter.h"
-#include "./FFTPlugin.hpp"
-#include "./MadgwickAHRS.hpp"
-#include "./MPU.hpp"
+#include <math.h>
+#include <vector>
+#include <thread>
+#include <unistd.h>
+#include <sys/time.h>
+#include <signal.h>
+#include <iostream>
+#include <stdexcept>
+//
+#include "filter.h"
+#include "FFTPlugin.hpp"
+#include "MadgwickAHRS.hpp"
+#include "_thirdparty/libeigen/Eigen/Dense"
+#include "_thirdparty/libeigen/Eigen/LU"
+//
+#include "MPU.hpp"
 #include "MPU9250/MPU9250.hpp"
 #include "ICM20602/ICM20602.hpp"
 #include "ICM42605/ICM42605.hpp"
 
 #ifdef MPUSPI_PIGPIO
-#include "./_thirdparty/LinuxDriver/SPI/Drive_PIGPIO.h"
+#include "_thirdparty/LinuxDriver/SPI/Drive_PIGPIO.h"
 #elif MPUSPI_CUSTOM
-#include "./_thirdparty/LinuxDriver/SPI/Drive_Custom.h"
+#include "_thirdparty/LinuxDriver/SPI/Drive_Custom.h"
 #else
-#include "./_thirdparty/LinuxDriver/SPI/Drive_LinuxSPI.h"
+#include "_thirdparty/LinuxDriver/SPI/Drive_LinuxSPI.h"
 #endif
 
 class RPiMPU9250
@@ -104,17 +116,29 @@ public:
             pt1FilterInit(&VibeLPF[AAYN], ACC_VIBE_FILT_HZ, ACCDT * 1e-6f);
             pt1FilterInit(&VibeLPF[AAZN], ACC_VIBE_FILT_HZ, ACCDT * 1e-6f);
         }
+        if (PrivateConfig.GyroDynamicAnalyse)
+        {
+            for (size_t i = 0; i < 3; i++)
+            {
+                FFTData.push_back(std::vector<float>(FFTBINCOUNT));
+                PrivateData.FFTSampleBox.push_back(std::vector<float>(FFTBINCOUNT));
+            }
+            //
+            FFTWINDOW = std::vector<float>(FFTBINCOUNT);
+            VecBuildBlackmanHarrisWindow(FFTWINDOW.data(), FFTWINDOW.size());
+        }
+
         // MPUInit
         switch (PrivateConfig.GyroScope)
         {
-        case MPU9250:
+        case SensorType::MPU9250:
             MPU9250Init(PrivateConfig, PrivateData, Sensor_fd);
             break;
 
-        case ICM20602:
+        case SensorType::ICM20602:
             ICM20602Init(PrivateConfig, PrivateData, Sensor_fd);
             break;
-        case ICM42605:
+        case SensorType::ICM42605:
             ICM42605Init(PrivateConfig, PrivateData, Sensor_fd);
             break;
         }
@@ -133,12 +157,6 @@ public:
         PrivateData._flag_MPU9250_A_Z_Cali = AccelCaliData[MPUAccelCaliZ];
         PrivateData._flag_MPU9250_A_TR_Cali = AccelCaliData[MPUAccelTRIM_Roll];
         PrivateData._flag_MPU9250_A_TP_Cali = AccelCaliData[MPUAccelTRIMPitch];
-
-        // for (int cali_count = 0; cali_count < IMU_CALI_MAX_LOOP; cali_count++)
-        // {
-        //     MPUSensorsDataGet();
-        //     usleep((int)(1.f / (float)PrivateConfig.TargetFreqency * 1000000.f));
-        // }
 
         double _Tmp_Gryo_X_Cali = 0;
         double _Tmp_Gryo_Y_Cali = 0;
@@ -347,9 +365,9 @@ public:
                         {
                             IMUDynamicNotchUpdate();
                             int DT = (float)(1.f / (float)PrivateConfig.TargetFreqency) * 1000000.f;
-                            biquadFilterUpdate(&GryoFilterDynamicNotch[GAXR], PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[GAXR], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
-                            biquadFilterUpdate(&GryoFilterDynamicNotch[GAYP], PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[GAYP], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
-                            biquadFilterUpdate(&GryoFilterDynamicNotch[GAZY], PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[GAZY], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
+                            // biquadFilterUpdate(&GryoFilterDynamicNotch[GAXR], PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[GAXR], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
+                            // biquadFilterUpdate(&GryoFilterDynamicNotch[GAYP], PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[GAYP], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
+                            // biquadFilterUpdate(&GryoFilterDynamicNotch[GAZY], PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[GAZY], DT, PrivateConfig.DynamicNotchQ, FILTER_NOTCH);
                             GyroDynamicNotchReady = false;
                         }
                     }
@@ -359,9 +377,9 @@ public:
                 //
                 if (PrivateConfig.DynamicNotchEnable)
                 {
-                    PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterDynamicNotch[GAXR], PrivateData._uORB_Gryo__Roll);
-                    PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterDynamicNotch[GAYP], PrivateData._uORB_Gryo_Pitch);
-                    PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterDynamicNotch[GAZY], PrivateData._uORB_Gryo___Yaw);
+                    // PrivateData._uORB_Gryo__Roll = biquadFilterApply(&GryoFilterDynamicNotch[GAXR], PrivateData._uORB_Gryo__Roll);
+                    // PrivateData._uORB_Gryo_Pitch = biquadFilterApply(&GryoFilterDynamicNotch[GAYP], PrivateData._uORB_Gryo_Pitch);
+                    // PrivateData._uORB_Gryo___Yaw = biquadFilterApply(&GryoFilterDynamicNotch[GAZY], PrivateData._uORB_Gryo___Yaw);
                 }
             }
         }
@@ -512,14 +530,14 @@ private:
             int Six_Axis[6] = {0};
             switch (PrivateConfig.GyroScope)
             {
-            case MPU9250:
+            case SensorType::MPU9250:
                 MPU9250DataSPIRead(Sensor_fd, Six_Axis, PrivateConfig.MPU9250_SPI_Freq);
                 break;
 
-            case ICM20602:
+            case SensorType::ICM20602:
                 ICM20602DataSPIRead(Sensor_fd, Six_Axis, PrivateConfig.MPU9250_SPI_Freq);
                 break;
-            case ICM42605:
+            case SensorType::ICM42605:
                 ICM42605DataSPIRead(Sensor_fd, Six_Axis, PrivateConfig.MPU9250_SPI_Freq);
                 break;
             }
@@ -576,12 +594,9 @@ private:
             if (FFTOverSampleCount >= (PrivateConfig.TargetFreqency / 1000))
             {
                 FFTOverSampleCount = 0;
-                FFTData[0][FFTCountDown].Re = FFTOverSample[0] / (float)(PrivateConfig.TargetFreqency / 1000);
-                FFTData[1][FFTCountDown].Re = FFTOverSample[1] / (float)(PrivateConfig.TargetFreqency / 1000);
-                FFTData[2][FFTCountDown].Re = FFTOverSample[2] / (float)(PrivateConfig.TargetFreqency / 1000);
-                FFTData[0][FFTCountDown].Im = 0;
-                FFTData[1][FFTCountDown].Im = 0;
-                FFTData[2][FFTCountDown].Im = 0;
+                FFTData[0][FFTCountDown] = FFTOverSample[0] / (float)(PrivateConfig.TargetFreqency / 1000);
+                FFTData[1][FFTCountDown] = FFTOverSample[1] / (float)(PrivateConfig.TargetFreqency / 1000);
+                FFTData[2][FFTCountDown] = FFTOverSample[2] / (float)(PrivateConfig.TargetFreqency / 1000);
                 //
                 FFTOverSample[0] = 0;
                 FFTOverSample[1] = 0;
@@ -590,13 +605,9 @@ private:
             }
         }
         // FFT caculate using 3 loop frame
-        if (FFTCountDown >= 16)
+        if (FFTCountDown >= FFTBINCOUNT)
         {
-            fft(FFTData[GyroDynamicFFTCaculateCount], 16, FFTDataTmp[GyroDynamicFFTCaculateCount]);
-            for (size_t i = 0; i < 16; i++)
-                PrivateData.FFTSampleBox[GyroDynamicFFTCaculateCount][i] =
-                    sqrt((FFTData[GyroDynamicFFTCaculateCount][i].Re * FFTData[GyroDynamicFFTCaculateCount][i].Re +
-                          FFTData[GyroDynamicFFTCaculateCount][i].Im * FFTData[GyroDynamicFFTCaculateCount][i].Im));
+            PrivateData.FFTSampleBox[GyroDynamicFFTCaculateCount] = FFTFrequencyAnalyzer<float>(FFTData[GyroDynamicFFTCaculateCount], FFTWINDOW);
             GyroDynamicFFTCaculateCount--;
         }
 
@@ -675,7 +686,9 @@ private:
                 {
                     fftMeanIndex = (fftWeightedSum / fftSum) - 1;
                     // the index points at the center frequency of each bin so index 0 is actually 16.125Hz
-                    centerFreq = fftMeanIndex * FFTResolution;
+                    // centerFreq = fftMeanIndex * FFTResolution;
+                    centerFreq = freqPeak(PrivateData.FFTSampleBox[x].data(), PrivateData.FFTSampleBox[x].size(), fftMeanIndex, 500);
+                    PrivateData.fftindexs[x] = fftMeanIndex;
                 }
                 else
                 {
@@ -685,6 +698,24 @@ private:
                 PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[x] = biquadFilterApply(&GryoFilterDynamicFreq[x], centerFreq);
                 GyroDynamicNotchCenterLast[x] = PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[x];
             }
+            // float centerFreq = DYNAMIC_NOTCH_DEFAULT_CENTER_HZ;
+            // int MaxFFTIndex = 0;
+            // float MaxFFTValue = 0;
+            // Find Max :
+            // for (size_t i = 2; i < (PrivateData.FFTSampleBox[x].size() / 2); i++)
+            // {
+            //     if (std::abs(PrivateData.FFTSampleBox[x][i]) > MaxFFTValue)
+            //     {
+            //         MaxFFTValue = std::abs(PrivateData.FFTSampleBox[x][i]);
+            //         MaxFFTIndex = i;
+            //     }
+            // }
+
+            // centerFreq = freqPeak(PrivateData.FFTSampleBox[x].data(), PrivateData.FFTSampleBox[x].size(), 1, 500);
+
+            // PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[x] = biquadFilterApply(&GryoFilterDynamicFreq[x], centerFreq);
+            // PrivateData._uORB_Gyro_Dynamic_NotchCenterHZ[1] = centerFreq;
+            // PrivateData.fftindexs[x] = MaxFFTIndex;}
         }
     };
 
@@ -706,7 +737,6 @@ private:
     int LastUpdate = 0;
     MPUData PrivateData;
     MPUConfig PrivateConfig;
-    SensorType sensor;
     std::unique_ptr<MadgwickAHRS> AHRSSys;
     //
     int _Tmp_AHRS_MAG_X = 0;
@@ -734,8 +764,8 @@ private:
     int GyroDynamicFFTSampleCount = 0;
     int GyroDynamicFFTCaculateCount = 0;
     bool GyroDynamicNotchReady = false;
-    complex FFTData[3][25];
-    complex FFTDataTmp[3][25];
+    std::vector<float> FFTWINDOW;
+    std::vector<std::vector<float>> FFTData;
     float FFTOverSample[3] = {0};
     int GyroDynmiacNotchMinBox = 2;
     int GyroDynamicNotchCenterLast[3] = {350, 350, 350};

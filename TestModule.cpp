@@ -4,7 +4,6 @@
 #include <iomanip>
 #include <unistd.h>
 #include "src/MPUProcess.hpp"
-#include "src/MPU.hpp"
 
 void configWrite(const char *configDir, const char *Target, double obj);
 double configSettle(const char *configDir, const char *Target);
@@ -38,8 +37,7 @@ int main(int argc, char *argv[])
             MPUConfig option;
             option.MPUType = MPUTypeSPI;
             option.GyroScope = MPU9250;
-            option.MPUSPIChannel = "/dev/spidev0.0";
-            option.ICMSPIChannel = "/dev/spidev0.0";
+            option.GyroSPIChannel = "/dev/spidev0.0";
             option.MPUI2CAddress = 0x68;
             option.MPU9250_SPI_Freq = 1000 * 1000;
             option.TargetFreqency = 1000.f;
@@ -108,8 +106,7 @@ int main(int argc, char *argv[])
             std::cout.flush();
             MPUConfig option;
             option.GyroScope = MPU9250;
-            option.MPUSPIChannel = "/dev/spidev0.0";
-            option.ICMSPIChannel = "/dev/spidev0.0";
+            option.GyroSPIChannel = "/dev/spidev0.0";
             option.MPUI2CAddress = 0x68;
             option.MPU9250_SPI_Freq = 1000 * 1000;
             option.TargetFreqency = 1000.f;

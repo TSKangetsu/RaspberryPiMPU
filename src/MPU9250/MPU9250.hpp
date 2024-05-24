@@ -8,7 +8,7 @@ inline void MPU9250Init(MPUConfig &PrivateConfig, MPUData &PrivateData, int &Sen
     double OutputSpeedCal = (MPU_250HZ_LPF_SPEED / (float)PrivateConfig.TargetFreqency) - 1.f;
     if (PrivateConfig.MPUType == MPUTypeSPI)
     {
-        Sensor_fd = _s_spiOpen(PrivateConfig.MPUSPIChannel, PrivateConfig.MPU9250_SPI_Freq, 0);
+        Sensor_fd = _s_spiOpen(PrivateConfig.GyroSPIChannel, PrivateConfig.MPU9250_SPI_Freq, 0);
         if (Sensor_fd < 0)
             throw std::invalid_argument("[SPI] MPU device can't open");
 
