@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
             TimeMax = 500;
             MPUConfig option;
             option.MPUType = MPUTypeSPI;
-            option.GyroScope = MPU9250;
+            option.GyroScope = SensorType::AUTO;
             option.GyroSPIChannel = "/dev/spidev0.0";
             option.MPUI2CAddress = 0x68;
             option.MPU9250_SPI_Freq = 1000 * 1000;
@@ -102,10 +102,10 @@ int main(int argc, char *argv[])
             double AccelCaliData[30];
             TimeMax = 1000;
             std::cout << "Start MPU Monitor\n";
-            std::cout << "Setting UP MPU9250 ....";
+            std::cout << "Setting UP ... ";
             std::cout.flush();
             MPUConfig option;
-            option.GyroScope = MPU9250;
+            option.GyroScope = SensorType::AUTO;
             option.GyroSPIChannel = "/dev/spidev0.0";
             option.MPUI2CAddress = 0x68;
             option.MPU9250_SPI_Freq = 1000 * 1000;
@@ -127,7 +127,9 @@ int main(int argc, char *argv[])
             option.AccelFilterCutOff = 15;
             option.MPU_Flip___Yaw = 270;
             RPiMPU9250 *myMPUTest = new RPiMPU9250(option);
-            std::cout << " Done!\n";
+            //
+            auto gyroDetected = myMPUTest->GetMPUTypeDetected();
+            std::cout << "0x" << std::hex << (int)gyroDetected << " ... Done!\n";
             //
             AccelCaliData[MPUAccelCaliX] = configSettle("./MPUCali.json", "_flag_MPU9250_A_X_Cali");
             AccelCaliData[MPUAccelCaliY] = configSettle("./MPUCali.json", "_flag_MPU9250_A_Y_Cali");

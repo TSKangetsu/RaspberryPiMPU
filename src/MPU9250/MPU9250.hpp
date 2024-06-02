@@ -8,10 +8,6 @@ inline void MPU9250Init(MPUConfig &PrivateConfig, MPUData &PrivateData, int &Sen
     double OutputSpeedCal = (MPU_250HZ_LPF_SPEED / (float)PrivateConfig.TargetFreqency) - 1.f;
     if (PrivateConfig.MPUType == MPUTypeSPI)
     {
-        Sensor_fd = _s_spiOpen(PrivateConfig.GyroSPIChannel, PrivateConfig.MPU9250_SPI_Freq, 0);
-        if (Sensor_fd < 0)
-            throw std::invalid_argument("[SPI] MPU device can't open");
-
         uint8_t MPU9250_SPI_Config_WHOAMI[2] = {0xf5, 0x00};
         _s_spiXfer(Sensor_fd, MPU9250_SPI_Config_WHOAMI, MPU9250_SPI_Config_WHOAMI, PrivateConfig.MPU9250_SPI_Freq, 2);
         PrivateData.DeviceType = MPU9250_SPI_Config_WHOAMI[1];

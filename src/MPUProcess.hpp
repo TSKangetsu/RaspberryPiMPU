@@ -30,6 +30,8 @@
 class RPiMPU9250
 {
 public:
+    auto GetMPUTypeDetected() const & -> const SensorType & { return PrivateConfig.GyroScope; }
+
     inline RPiMPU9250(MPUConfig mpuConfig)
     {
         struct timespec tv;
@@ -41,6 +43,7 @@ public:
 
         PrivateConfig = mpuConfig;
         GyroDynmiacNotchMinBox = (PrivateConfig.DynamicNotchMinFreq / FFTResolution) - 1;
+
         // Settings all Filter
         {
             int DT = (float)(1.f / (float)PrivateConfig.TargetFreqency) * 1000000;
@@ -116,6 +119,7 @@ public:
             pt1FilterInit(&VibeLPF[AAYN], ACC_VIBE_FILT_HZ, ACCDT * 1e-6f);
             pt1FilterInit(&VibeLPF[AAZN], ACC_VIBE_FILT_HZ, ACCDT * 1e-6f);
         }
+
         if (PrivateConfig.GyroDynamicAnalyse)
         {
             for (size_t i = 0; i < 3; i++)
@@ -129,18 +133,42 @@ public:
         }
 
         // MPUInit
-        switch (PrivateConfig.GyroScope)
         {
-        case SensorType::MPU9250:
-            MPU9250Init(PrivateConfig, PrivateData, Sensor_fd);
-            break;
+            Sensor_fd = _s_spiOpen(PrivateConfig.GyroSPIChannel, PrivateConfig.MPU9250_SPI_Freq, 0);
+            if (Sensor_fd < 0)
+                throw std::invalid_argument("SPI configuration failed");
 
-        case SensorType::ICM20602:
-            ICM20602Init(PrivateConfig, PrivateData, Sensor_fd);
-            break;
-        case SensorType::ICM42605:
-            ICM42605Init(PrivateConfig, PrivateData, Sensor_fd);
-            break;
+            if (PrivateConfig.GyroScope == SensorType::AUTO)
+            {
+                uint8_t SPI_Config_WHOAMI[2] = {0xf5, 0x00};
+                _s_spiXfer(Sensor_fd, SPI_Config_WHOAMI, SPI_Config_WHOAMI, PrivateConfig.MPU9250_SPI_Freq, 2);
+                PrivateData.DeviceType = SPI_Config_WHOAMI[1];
+
+                if (PrivateData.DeviceType == SensorType::ICM20602)
+                    PrivateConfig.GyroScope = SensorType::ICM20602;
+                else if (PrivateData.DeviceType == SensorType::ICM42605)
+                    PrivateConfig.GyroScope = SensorType::ICM42605;
+                else if (PrivateData.DeviceType == SensorType::MPU9250)
+                    PrivateConfig.GyroScope = SensorType::MPU9250;
+                else if (PrivateData.DeviceType == SensorType::MPU6500)
+                    PrivateConfig.GyroScope = SensorType::MPU9250; // FIXME: deal as 9250
+
+                if (PrivateConfig.GyroScope == SensorType::AUTO)
+                    throw std::range_error("Can't find Gyro type");
+            }
+
+            switch (PrivateConfig.GyroScope)
+            {
+            case SensorType::MPU9250:
+                MPU9250Init(PrivateConfig, PrivateData, Sensor_fd);
+                break;
+            case SensorType::ICM20602:
+                ICM20602Init(PrivateConfig, PrivateData, Sensor_fd);
+                break;
+            case SensorType::ICM42605:
+                ICM42605Init(PrivateConfig, PrivateData, Sensor_fd);
+                break;
+            }
         }
         AHRSSys.reset(new MadgwickAHRS(PrivateConfig.GyroToAccelBeta, PrivateConfig.TargetFreqency));
     };

@@ -7,9 +7,6 @@ inline void ICM20602Init(MPUConfig &PrivateConfig, MPUData &PrivateData, int &Se
 {
     if (PrivateConfig.MPUType == MPUTypeSPI)
     {
-        Sensor_fd = _s_spiOpen(PrivateConfig.GyroSPIChannel, PrivateConfig.MPU9250_SPI_Freq, 0);
-        if (Sensor_fd < 0)
-            throw std::invalid_argument("[SPI] ICM device can't open");
         uint8_t ICM20602_SPI_Config_WHOAMI[2] = {0xf5, 0x00};
         _s_spiXfer(Sensor_fd, ICM20602_SPI_Config_WHOAMI, ICM20602_SPI_Config_WHOAMI, PrivateConfig.MPU9250_SPI_Freq, 2);
         PrivateData.DeviceType = ICM20602_SPI_Config_WHOAMI[1];
@@ -56,9 +53,7 @@ inline void ICM20602Init(MPUConfig &PrivateConfig, MPUData &PrivateData, int &Se
     }
 }
 
-
-
-inline void ICM20602DataSPIRead(int &Sensor_fd,int *Six_AxisData,int ICM20602_SPI_Freq)
+inline void ICM20602DataSPIRead(int &Sensor_fd, int *Six_AxisData, int ICM20602_SPI_Freq)
 {
 
     uint8_t Tmp_ICM20602_SPI_BufferX[2] = {0};

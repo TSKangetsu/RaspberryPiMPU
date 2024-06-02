@@ -7,13 +7,9 @@ inline void ICM42605Init(MPUConfig &PrivateConfig, MPUData &PrivateData, int &Se
 {
     if (PrivateConfig.MPUType == MPUTypeSPI)
     {
-        Sensor_fd = _s_spiOpen(PrivateConfig.GyroSPIChannel, PrivateConfig.MPU9250_SPI_Freq, 0);
-        if (Sensor_fd < 0)
-            throw std::invalid_argument("[SPI] ICM device can't open");
         uint8_t ICM42605_SPI_Config_WHOAMI[2] = {0xf5, 0x00};
         _s_spiXfer(Sensor_fd, ICM42605_SPI_Config_WHOAMI, ICM42605_SPI_Config_WHOAMI, PrivateConfig.MPU9250_SPI_Freq, 2);
         PrivateData.DeviceType = ICM42605_SPI_Config_WHOAMI[1];
-        std::cout << "Device Type: " << std::dec << static_cast<int>(PrivateData.DeviceType) << std::endl;
 
         //---------------------reset--------------------------//
         uint8_t ICM42605_SPI_Config_RESET[2] = {0x76, 0x00};
@@ -98,7 +94,7 @@ inline void ICM42605Init(MPUConfig &PrivateConfig, MPUData &PrivateData, int &Se
     }
 }
 
-inline void ICM42605DataSPIRead(int &Sensor_fd,int *Six_AxisData,int ICM42605_SPI_Freq)
+inline void ICM42605DataSPIRead(int &Sensor_fd, int *Six_AxisData, int ICM42605_SPI_Freq)
 {
     uint8_t Tmp_ICM42605_SPI_BufferX[2] = {0};
     Tmp_ICM42605_SPI_BufferX[0] = 0xAD;
@@ -128,9 +124,3 @@ inline void ICM42605DataSPIRead(int &Sensor_fd,int *Six_AxisData,int ICM42605_SP
         }
     }
 }
-
-
-
-
-
-
