@@ -143,7 +143,6 @@ public:
                 uint8_t SPI_Config_WHOAMI[2] = {0xf5, 0x00};
                 _s_spiXfer(Sensor_fd, SPI_Config_WHOAMI, SPI_Config_WHOAMI, PrivateConfig.MPU9250_SPI_Freq, 2);
                 PrivateData.DeviceType = SPI_Config_WHOAMI[1];
-
                 if (PrivateData.DeviceType == SensorType::ICM20602)
                     PrivateConfig.GyroScope = SensorType::ICM20602;
                 else if (PrivateData.DeviceType == SensorType::ICM42605)

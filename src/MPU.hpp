@@ -62,7 +62,7 @@
 enum SensorType
 {
     AUTO,
-    MPU9250 = 0x71,
+    MPU9250 = 0x70,
     ICM20602 = 0x12,
     ICM42605 = 0x42,
     MPU6500 = 0x68,
