@@ -18,6 +18,8 @@
 #include "MPU9250/MPU9250.hpp"
 #include "ICM20602/ICM20602.hpp"
 #include "ICM42605/ICM42605.hpp"
+//
+#include <ostream>
 
 #ifdef MPUSPI_PIGPIO
 #include "_thirdparty/LinuxDriver/SPI/Drive_PIGPIO.h"
@@ -149,11 +151,17 @@ public:
                     PrivateConfig.GyroScope = SensorType::ICM42605;
                 else if (PrivateData.DeviceType == SensorType::MPU9250)
                     PrivateConfig.GyroScope = SensorType::MPU9250;
+                else if (PrivateData.DeviceType == SensorType::MPU9255)
+                    PrivateConfig.GyroScope = SensorType::MPU9250;
                 else if (PrivateData.DeviceType == SensorType::MPU6500)
                     PrivateConfig.GyroScope = SensorType::MPU9250; // FIXME: deal as 9250
 
+                std::string s;
                 if (PrivateConfig.GyroScope == SensorType::AUTO)
-                    throw std::range_error("Can't find Gyro type");
+                    throw std::range_error(
+                        static_cast<std::ostringstream &&>(
+                            (std::ostringstream() << "Can't find Gyro type :" << std::hex << (int)SPI_Config_WHOAMI[1]) << std::dec << "\n")
+                            .str());
             }
 
             switch (PrivateConfig.GyroScope)

@@ -63,9 +63,10 @@ enum SensorType
 {
     AUTO,
     MPU9250 = 0x70,
+    MPU9255 = 0x71,
+    MPU6500 = 0x68,
     ICM20602 = 0x12,
     ICM42605 = 0x42,
-    MPU6500 = 0x68,
 };
 
 struct MPUConfig
