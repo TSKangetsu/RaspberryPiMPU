@@ -62,21 +62,21 @@ inline void MPU9250DataSPIRead(int &Sensor_fd,int *Six_AxisData,int MPU9250_SPI_
     if (Tmp_MPU9250_SPI_BufferX[1] & 0x01)
     {
 
-        uint8_t Tmp_MPU9250_SPI_Buffer[8] = {0};
-        uint8_t Tmp_MPU9250_SPI_Bufferout[8] = {0};
+        uint8_t Tmp_MPU9250_SPI_Buffer[10] = {0};
+        uint8_t Tmp_MPU9250_SPI_Bufferout[10] = {0};
         Tmp_MPU9250_SPI_Buffer[0] = 0xBB;
         {
-            _s_spiXfer(Sensor_fd, Tmp_MPU9250_SPI_Buffer, Tmp_MPU9250_SPI_Bufferout, MPU9250_SPI_Freq, 8);
+            _s_spiXfer(Sensor_fd, Tmp_MPU9250_SPI_Buffer, Tmp_MPU9250_SPI_Bufferout, MPU9250_SPI_Freq, 10);
             Six_AxisData[0] = (short)((int)Tmp_MPU9250_SPI_Bufferout[1] << 8 | (int)Tmp_MPU9250_SPI_Bufferout[2]);
             Six_AxisData[1] = (short)((int)Tmp_MPU9250_SPI_Bufferout[3] << 8 | (int)Tmp_MPU9250_SPI_Bufferout[4]);
             Six_AxisData[2] = (short)((int)Tmp_MPU9250_SPI_Bufferout[5] << 8 | (int)Tmp_MPU9250_SPI_Bufferout[6]);
         }
 
         {
-            uint8_t Tmp_MPU9250_SPI_GBuffer[8] = {0};
-            uint8_t Tmp_MPU9250_SPI_GBufferout[8] = {0};
+            uint8_t Tmp_MPU9250_SPI_GBuffer[10] = {0};
+            uint8_t Tmp_MPU9250_SPI_GBufferout[10] = {0};
             Tmp_MPU9250_SPI_GBuffer[0] = 0xC3;
-            _s_spiXfer(Sensor_fd, Tmp_MPU9250_SPI_GBuffer, Tmp_MPU9250_SPI_GBufferout, MPU9250_SPI_Freq, 8);
+            _s_spiXfer(Sensor_fd, Tmp_MPU9250_SPI_GBuffer, Tmp_MPU9250_SPI_GBufferout, MPU9250_SPI_Freq, 10);
             Six_AxisData[3] = (short)((int)Tmp_MPU9250_SPI_GBufferout[1] << 8 | (int)Tmp_MPU9250_SPI_GBufferout[2]);
             Six_AxisData[4] = (short)((int)Tmp_MPU9250_SPI_GBufferout[3] << 8 | (int)Tmp_MPU9250_SPI_GBufferout[4]);
             Six_AxisData[5] = (short)((int)Tmp_MPU9250_SPI_GBufferout[5] << 8 | (int)Tmp_MPU9250_SPI_GBufferout[6]);
