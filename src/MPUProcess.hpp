@@ -262,7 +262,7 @@ public:
     {
         int AccelCaliTmpTotal = 0;
         AccelCaliData[AccelCaliAction] = 0;
-        for (int cali_count = 0; cali_count < 2000; cali_count++)
+        for (int cali_count = 0; cali_count < 200; cali_count++)
         {
             IMUSensorsDataRead();
             switch (AccelCaliAction)
