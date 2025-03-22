@@ -262,7 +262,8 @@ public:
     {
         int AccelCaliTmpTotal = 0;
         AccelCaliData[AccelCaliAction] = 0;
-        for (int cali_count = 0; cali_count < 200; cali_count++)
+        float calicounting = PrivateConfig.AccTargetFreqency * 2;
+        for (int cali_count = 0; cali_count < calicounting; cali_count++)
         {
             IMUSensorsDataRead();
             switch (AccelCaliAction)
@@ -290,12 +291,12 @@ public:
         }
         if (AccelCaliAction == MPUAccelCaliGet)
         {
-            AccelCaliData[MPUAccelNoseUp] /= 2000.f;
-            AccelCaliData[MPUAccelNoseDown] /= 2000.f;
-            AccelCaliData[MPUAccelNoseRight] /= 2000.f;
-            AccelCaliData[MPUAccelNoseLeft] /= 2000.f;
-            AccelCaliData[MPUAccelNoseTop] /= 2000.f;
-            AccelCaliData[MPUAccelNoseRev] /= 2000.f;
+            AccelCaliData[MPUAccelNoseUp] /= calicounting;
+            AccelCaliData[MPUAccelNoseDown] /= calicounting;
+            AccelCaliData[MPUAccelNoseRight] /= calicounting;
+            AccelCaliData[MPUAccelNoseLeft] /= calicounting;
+            AccelCaliData[MPUAccelNoseTop] /= calicounting;
+            AccelCaliData[MPUAccelNoseRev] /= calicounting;
             AccelCaliData[MPUAccelScalX] = std::abs(MPU9250_Accel_LSB / ((AccelCaliData[MPUAccelNoseUp] - AccelCaliData[MPUAccelNoseDown]) / 2.f));
             AccelCaliData[MPUAccelScalY] = std::abs(MPU9250_Accel_LSB / ((AccelCaliData[MPUAccelNoseLeft] - AccelCaliData[MPUAccelNoseRight]) / 2.f));
             AccelCaliData[MPUAccelScalZ] = std::abs(MPU9250_Accel_LSB / ((AccelCaliData[MPUAccelNoseTop] - AccelCaliData[MPUAccelNoseRev]) / 2.f));
