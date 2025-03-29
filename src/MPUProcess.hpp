@@ -201,7 +201,8 @@ public:
         PrivateData._flag_MPU9250_G_Y_Cali = 0;
         PrivateData._flag_MPU9250_G_Z_Cali = 0;
 
-        for (int cali_count = 0; cali_count < IMU_CALI_MAX_LOOP; cali_count++)
+        int caliRequest = PrivateConfig.TargetFreqency / 4;
+        for (int cali_count = 0; cali_count < caliRequest; cali_count++)
         {
             MPUSensorsDataGet();
             ResetMPUMixAngle();
@@ -212,16 +213,16 @@ public:
             usleep((int)(1.f / (float)PrivateConfig.TargetFreqency * 1000000.f));
         }
 
-        for (int cali_count = 0; cali_count < IMU_CALI_MAX_LOOP; cali_count++)
+        for (int cali_count = 0; cali_count < caliRequest; cali_count++)
         {
             MPUSensorsDataGet();
             _Tmp_Accel_Static_Cali += PrivateData._uORB_MPU9250_A_Vector;
             usleep((int)(1.f / (float)PrivateConfig.TargetFreqency * 1000000.f));
         }
-        PrivateData._flag_MPU9250_G_X_Cali = _Tmp_Gryo_X_Cali / IMU_CALI_MAX_LOOP;
-        PrivateData._flag_MPU9250_G_Y_Cali = _Tmp_Gryo_Y_Cali / IMU_CALI_MAX_LOOP;
-        PrivateData._flag_MPU9250_G_Z_Cali = _Tmp_Gryo_Z_Cali / IMU_CALI_MAX_LOOP;
-        PrivateData._uORB_MPU9250_A_Static_Vector = _Tmp_Accel_Static_Cali / IMU_CALI_MAX_LOOP;
+        PrivateData._flag_MPU9250_G_X_Cali = _Tmp_Gryo_X_Cali / caliRequest;
+        PrivateData._flag_MPU9250_G_Y_Cali = _Tmp_Gryo_Y_Cali / caliRequest;
+        PrivateData._flag_MPU9250_G_Z_Cali = _Tmp_Gryo_Z_Cali / caliRequest;
+        PrivateData._uORB_MPU9250_A_Static_Vector = _Tmp_Accel_Static_Cali / caliRequest;
         return 0;
     };
 
@@ -244,12 +245,13 @@ public:
         _Tmp_Gryo_Z_Cali_ON += PrivateData._uORB_MPU9250_G_Z;
         _Tmp_Accel_Static_Cali_ON += PrivateData._uORB_MPU9250_A_Vector;
 
-        if (PrivateData._uORB_MPU9250_CalibrationCountDown >= IMU_CALI_MAX_LOOP)
+        int caliRequest = PrivateConfig.TargetFreqency / 4;
+        if (PrivateData._uORB_MPU9250_CalibrationCountDown >= caliRequest)
         {
-            PrivateData._flag_MPU9250_G_X_Cali = _Tmp_Gryo_X_Cali_ON / IMU_CALI_MAX_LOOP;
-            PrivateData._flag_MPU9250_G_Y_Cali = _Tmp_Gryo_Y_Cali_ON / IMU_CALI_MAX_LOOP;
-            PrivateData._flag_MPU9250_G_Z_Cali = _Tmp_Gryo_Z_Cali_ON / IMU_CALI_MAX_LOOP;
-            PrivateData._uORB_MPU9250_A_Static_Vector = _Tmp_Accel_Static_Cali_ON / IMU_CALI_MAX_LOOP;
+            PrivateData._flag_MPU9250_G_X_Cali = _Tmp_Gryo_X_Cali_ON / caliRequest;
+            PrivateData._flag_MPU9250_G_Y_Cali = _Tmp_Gryo_Y_Cali_ON / caliRequest;
+            PrivateData._flag_MPU9250_G_Z_Cali = _Tmp_Gryo_Z_Cali_ON / caliRequest;
+            PrivateData._uORB_MPU9250_A_Static_Vector = _Tmp_Accel_Static_Cali_ON / caliRequest;
             PrivateData._uORB_MPU9250_CalibrationCountDown = 0;
             return 0;
         }
