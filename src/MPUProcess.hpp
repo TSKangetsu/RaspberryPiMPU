@@ -178,6 +178,7 @@ public:
             }
         }
         AHRSSys.reset(new MadgwickAHRS(PrivateConfig.GyroToAccelBeta, PrivateConfig.TargetFreqency));
+        AHRSSys->MadgwickSetMagWeight(PrivateConfig.MagToYawBeta);
     };
 
     // Gryo must be Calibration Before Get MPU Data, This Function Require a Correctly Accel Calibration
@@ -546,6 +547,11 @@ public:
     inline void ResetMPUMixAngle()
     {
         AHRSSys->MadgwickResetToAccel();
+    }
+
+    inline void ResetMAGMixYaw()
+    {
+        AHRSSys->MadgwickResetToMag();
     }
 
     inline ~RPiMPU9250()

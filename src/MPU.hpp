@@ -80,6 +80,7 @@ struct MPUConfig
     //
     int TargetFreqency = 1000;
     float GyroToAccelBeta = 0.02;
+    float MagToYawBeta = 0.02;
     bool GyroDynamicAnalyse = false;
     //
     int GyroHardwareFilterFreq = 250;
