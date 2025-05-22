@@ -62,7 +62,6 @@ inline void ICM20602DataSPIRead(int &Sensor_fd, int *Six_AxisData, int ICM20602_
 
     if (Tmp_ICM20602_SPI_BufferX[1] & 0x01)
     {
-
         uint8_t Tmp_ICM20602_SPI_Buffer[8] = {0};
         uint8_t Tmp_ICM20602_SPI_Bufferout[8] = {0};
         Tmp_ICM20602_SPI_Buffer[0] = 0xBB;

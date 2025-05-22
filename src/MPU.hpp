@@ -108,6 +108,9 @@ struct MPUData
 {
     int DeviceType = 0;
 
+    int _uORB_MPU9250_AC_X = 0;
+    int _uORB_MPU9250_AC_Y = 0;
+    int _uORB_MPU9250_AC_Z = 0;
     int _uORB_MPU9250_A_X = 0;
     int _uORB_MPU9250_A_Y = 0;
     int _uORB_MPU9250_A_Z = 0;

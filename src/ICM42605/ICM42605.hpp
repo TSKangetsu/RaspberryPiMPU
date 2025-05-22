@@ -102,7 +102,6 @@ inline void ICM42605DataSPIRead(int &Sensor_fd, int *Six_AxisData, int ICM42605_
 
     if (Tmp_ICM42605_SPI_BufferX[1] & 0x08)
     {
-
         uint8_t Tmp_ICM42605_SPI_Buffer[8] = {0};
         uint8_t Tmp_ICM42605_SPI_Bufferout[8] = {0};
         Tmp_ICM42605_SPI_Buffer[0] = 0x9f;

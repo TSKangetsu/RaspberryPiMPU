@@ -52,16 +52,14 @@ inline void MPU9250Init(MPUConfig &PrivateConfig, MPUData &PrivateData, int &Sen
     }
 }
 
-inline void MPU9250DataSPIRead(int &Sensor_fd,int *Six_AxisData,int MPU9250_SPI_Freq)
+inline void MPU9250DataSPIRead(int &Sensor_fd, int *Six_AxisData, int MPU9250_SPI_Freq)
 {
-
     uint8_t Tmp_MPU9250_SPI_BufferX[2] = {0};
     Tmp_MPU9250_SPI_BufferX[0] = 0xBA;
     _s_spiXfer(Sensor_fd, Tmp_MPU9250_SPI_BufferX, Tmp_MPU9250_SPI_BufferX, MPU9250_SPI_Freq, 2);
 
     if (Tmp_MPU9250_SPI_BufferX[1] & 0x01)
     {
-
         uint8_t Tmp_MPU9250_SPI_Buffer[8] = {0};
         uint8_t Tmp_MPU9250_SPI_Bufferout[8] = {0};
         Tmp_MPU9250_SPI_Buffer[0] = 0xBB;

@@ -158,9 +158,9 @@ int main(int argc, char *argv[])
                 std::cout << "\033[K";
                 std::cout << "Accel Roll: " << std::setw(7) << std::setfill(' ') << (int)myData._uORB_Accel__Roll << "|"
                           << "AccelPitch: " << std::setw(7) << std::setfill(' ') << (int)myData._uORB_Accel_Pitch << "| \n";
-                std::cout << "ACC       X: " << std::setw(7) << std::setfill(' ') << (int)myData._uORB_MPU9250_A_X << "|"
-                          << "ACC       Y: " << std::setw(7) << std::setfill(' ') << (int)myData._uORB_MPU9250_A_Y << "|"
-                          << "ACC       Z: " << std::setw(7) << std::setfill(' ') << (int)myData._uORB_MPU9250_A_Z << "| \n";
+                std::cout << "ACC       X: " << std::setw(7) << std::setfill(' ') << (int)myData._uORB_MPU9250_AC_X << "|"
+                          << "ACC       Y: " << std::setw(7) << std::setfill(' ') << (int)myData._uORB_MPU9250_AC_Y << "|"
+                          << "ACC       Z: " << std::setw(7) << std::setfill(' ') << (int)myData._uORB_MPU9250_AC_Z << "| \n";
                 std::cout << "Gryo  Roll: " << std::setw(7) << std::setfill(' ') << (int)myData._uORB_Gryo__Roll << "|"
                           << "Gryo Pitch: " << std::setw(7) << std::setfill(' ') << (int)myData._uORB_Gryo_Pitch << "|"
                           << "Gryo   Yaw: " << std::setw(7) << std::setfill(' ') << (int)myData._uORB_Gryo___Yaw << "| \n";

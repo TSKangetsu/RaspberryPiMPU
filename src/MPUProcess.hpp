@@ -325,9 +325,9 @@ public:
         PrivateData._uORB_MPU9250_G_Y -= PrivateData._flag_MPU9250_G_Y_Cali;
         PrivateData._uORB_MPU9250_G_Z -= PrivateData._flag_MPU9250_G_Z_Cali;
 
-        PrivateData._uORB_MPU9250_A_X = PrivateData._uORB_MPU9250_A_X * PrivateData._flag_MPU9250_A_X_Scal - PrivateData._flag_MPU9250_A_X_Cali;
-        PrivateData._uORB_MPU9250_A_Y = PrivateData._uORB_MPU9250_A_Y * PrivateData._flag_MPU9250_A_Y_Scal - PrivateData._flag_MPU9250_A_Y_Cali;
-        PrivateData._uORB_MPU9250_A_Z = PrivateData._uORB_MPU9250_A_Z * PrivateData._flag_MPU9250_A_Z_Scal - PrivateData._flag_MPU9250_A_Z_Cali;
+        PrivateData._uORB_MPU9250_AC_X = PrivateData._uORB_MPU9250_A_X * PrivateData._flag_MPU9250_A_X_Scal - PrivateData._flag_MPU9250_A_X_Cali;
+        PrivateData._uORB_MPU9250_AC_Y = PrivateData._uORB_MPU9250_A_Y * PrivateData._flag_MPU9250_A_Y_Scal - PrivateData._flag_MPU9250_A_Y_Cali;
+        PrivateData._uORB_MPU9250_AC_Z = PrivateData._uORB_MPU9250_A_Z * PrivateData._flag_MPU9250_A_Z_Scal - PrivateData._flag_MPU9250_A_Z_Cali;
         //========================= //=========================Gyro Filter
         {
             switch (PrivateConfig.GyroFilterType)
@@ -426,26 +426,26 @@ public:
         {
             if (PrivateData._uORB_MPU9250_AccelCountDown == 1)
             {
-                float AccVibeFloorX = pt1FilterApply(&VibeFloorLPF[AAXN], (PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
-                float AccVibeFloorY = pt1FilterApply(&VibeFloorLPF[AAYN], (PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
-                float AccVibeFloorZ = pt1FilterApply(&VibeFloorLPF[AAZN], (PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
-                PrivateData._uORB_Accel_VIBE_X = pt1FilterApply(&VibeLPF[AAXN], (pow((((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB) - AccVibeFloorX), 2)));
-                PrivateData._uORB_Accel_VIBE_Y = pt1FilterApply(&VibeLPF[AAYN], (pow((((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB) - AccVibeFloorY), 2)));
-                PrivateData._uORB_Accel_VIBE_Z = pt1FilterApply(&VibeLPF[AAZN], (pow((((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB) - AccVibeFloorZ), 2)));
+                float AccVibeFloorX = pt1FilterApply(&VibeFloorLPF[AAXN], (PrivateData._uORB_MPU9250_AC_X / MPU9250_Accel_LSB));
+                float AccVibeFloorY = pt1FilterApply(&VibeFloorLPF[AAYN], (PrivateData._uORB_MPU9250_AC_Y / MPU9250_Accel_LSB));
+                float AccVibeFloorZ = pt1FilterApply(&VibeFloorLPF[AAZN], (PrivateData._uORB_MPU9250_AC_Z / MPU9250_Accel_LSB));
+                PrivateData._uORB_Accel_VIBE_X = pt1FilterApply(&VibeLPF[AAXN], (pow((((float)PrivateData._uORB_MPU9250_AC_X / MPU9250_Accel_LSB) - AccVibeFloorX), 2)));
+                PrivateData._uORB_Accel_VIBE_Y = pt1FilterApply(&VibeLPF[AAYN], (pow((((float)PrivateData._uORB_MPU9250_AC_Y / MPU9250_Accel_LSB) - AccVibeFloorY), 2)));
+                PrivateData._uORB_Accel_VIBE_Z = pt1FilterApply(&VibeLPF[AAZN], (pow((((float)PrivateData._uORB_MPU9250_AC_Z / MPU9250_Accel_LSB) - AccVibeFloorZ), 2)));
                 //
                 if (PrivateConfig.AccelFilterCutOff)
                 {
                     switch (PrivateConfig.AccelFilterType)
                     {
                     case FilterLPFPT1:
-                        PrivateData._uORB_MPU9250_ADF_X = pt1FilterApply(&AccelFilterLPF[AAXN], ((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
-                        PrivateData._uORB_MPU9250_ADF_Y = pt1FilterApply(&AccelFilterLPF[AAYN], ((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
-                        PrivateData._uORB_MPU9250_ADF_Z = pt1FilterApply(&AccelFilterLPF[AAZN], ((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
+                        PrivateData._uORB_MPU9250_ADF_X = pt1FilterApply(&AccelFilterLPF[AAXN], ((float)PrivateData._uORB_MPU9250_AC_X / MPU9250_Accel_LSB));
+                        PrivateData._uORB_MPU9250_ADF_Y = pt1FilterApply(&AccelFilterLPF[AAYN], ((float)PrivateData._uORB_MPU9250_AC_Y / MPU9250_Accel_LSB));
+                        PrivateData._uORB_MPU9250_ADF_Z = pt1FilterApply(&AccelFilterLPF[AAZN], ((float)PrivateData._uORB_MPU9250_AC_Z / MPU9250_Accel_LSB));
                         break;
                     case FilterLPFBiquad:
-                        PrivateData._uORB_MPU9250_ADF_X = biquadFilterApply(&AccelFilterBLPF[AAXN], ((float)PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB));
-                        PrivateData._uORB_MPU9250_ADF_Y = biquadFilterApply(&AccelFilterBLPF[AAYN], ((float)PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB));
-                        PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelFilterBLPF[AAZN], ((float)PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB));
+                        PrivateData._uORB_MPU9250_ADF_X = biquadFilterApply(&AccelFilterBLPF[AAXN], ((float)PrivateData._uORB_MPU9250_AC_X / MPU9250_Accel_LSB));
+                        PrivateData._uORB_MPU9250_ADF_Y = biquadFilterApply(&AccelFilterBLPF[AAYN], ((float)PrivateData._uORB_MPU9250_AC_Y / MPU9250_Accel_LSB));
+                        PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelFilterBLPF[AAZN], ((float)PrivateData._uORB_MPU9250_AC_Z / MPU9250_Accel_LSB));
                         break;
                     }
 
@@ -458,9 +458,9 @@ public:
                 }
                 else
                 {
-                    PrivateData._uORB_MPU9250_ADF_X = PrivateData._uORB_MPU9250_A_X / MPU9250_Accel_LSB;
-                    PrivateData._uORB_MPU9250_ADF_Y = PrivateData._uORB_MPU9250_A_Y / MPU9250_Accel_LSB;
-                    PrivateData._uORB_MPU9250_ADF_Z = PrivateData._uORB_MPU9250_A_Z / MPU9250_Accel_LSB;
+                    PrivateData._uORB_MPU9250_ADF_X = PrivateData._uORB_MPU9250_AC_X / MPU9250_Accel_LSB;
+                    PrivateData._uORB_MPU9250_ADF_Y = PrivateData._uORB_MPU9250_AC_Y / MPU9250_Accel_LSB;
+                    PrivateData._uORB_MPU9250_ADF_Z = PrivateData._uORB_MPU9250_AC_Z / MPU9250_Accel_LSB;
                 }
                 //
                 if (abs(PrivateData._uORB_MPU9250_ADF_X) > ACC_CLIPPING_THRESHOLD_G ||
@@ -563,6 +563,7 @@ public:
 private:
     inline void IMUSensorsDataRead()
     {
+        deviceLock.lock();
         if (PrivateConfig.MPUType == MPUTypeI2C)
         {
             //
@@ -572,12 +573,13 @@ private:
             PrivateData._uORB_MPU9250_IMUUpdateTime = GetTimestamp() - LastUpdate;
             LastUpdate = GetTimestamp();
             int Six_Axis[6] = {0};
+
+            // TODO: should handling ACC and gyro, they not in same freq
             switch (PrivateConfig.GyroScope)
             {
             case SensorType::MPU9250:
                 MPU9250DataSPIRead(Sensor_fd, Six_Axis, PrivateConfig.MPU9250_SPI_Freq);
                 break;
-
             case SensorType::ICM20602:
                 ICM20602DataSPIRead(Sensor_fd, Six_Axis, PrivateConfig.MPU9250_SPI_Freq);
                 break;
@@ -606,7 +608,6 @@ private:
             PrivateData._uORB_MPU9250_AccelCountDown++;
 
             {
-
                 int Tmp_GX = Six_Axis[3];
                 int Tmp_GY = Six_Axis[4];
                 int Tmp_GZ = Six_Axis[5];
@@ -623,6 +624,7 @@ private:
                 //
             }
         }
+        deviceLock.unlock();
     }
 
     // Collect GryoData 1000HZ and DownSample to 500hz by 1/2
@@ -770,10 +772,9 @@ private:
         return (((tv.tv_sec * (uint64_t)1000000 + (tv.tv_nsec / 1000))) - IMUstartuptime);
     }
 
+    std::mutex deviceLock;
     int IMUstartuptime = 0;
-
     int Sensor_fd;
-
     float MPU9250_Gryo_LSB = MPU9250_GYRO_LSB;   // +-2000dps
     float MPU9250_Accel_LSB = MPU9250_ACCEL_LSB; //+-16g
     uint8_t Tmp_MPU9250_Buffer[20] = {0};
