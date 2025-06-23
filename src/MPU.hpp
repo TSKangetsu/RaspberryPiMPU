@@ -149,6 +149,7 @@ struct MPUData
     float _uORB_Accel_VIBE_X = 0;
     float _uORB_Accel_VIBE_Y = 0;
     float _uORB_Accel_VIBE_Z = 0;
+    float _uORB_Accel_VIBE = 0;
 
     int _flag_MPU9250_G_X_Cali;
     int _flag_MPU9250_G_Y_Cali;

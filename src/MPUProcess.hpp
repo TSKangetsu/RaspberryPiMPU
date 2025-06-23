@@ -18,6 +18,7 @@
 #include "MPU9250/MPU9250.hpp"
 #include "ICM20602/ICM20602.hpp"
 #include "ICM42605/ICM42605.hpp"
+#include <mutex>
 //
 #include <ostream>
 
@@ -328,6 +329,7 @@ public:
         PrivateData._uORB_MPU9250_AC_X = PrivateData._uORB_MPU9250_A_X * PrivateData._flag_MPU9250_A_X_Scal - PrivateData._flag_MPU9250_A_X_Cali;
         PrivateData._uORB_MPU9250_AC_Y = PrivateData._uORB_MPU9250_A_Y * PrivateData._flag_MPU9250_A_Y_Scal - PrivateData._flag_MPU9250_A_Y_Cali;
         PrivateData._uORB_MPU9250_AC_Z = PrivateData._uORB_MPU9250_A_Z * PrivateData._flag_MPU9250_A_Z_Scal - PrivateData._flag_MPU9250_A_Z_Cali;
+
         //========================= //=========================Gyro Filter
         {
             switch (PrivateConfig.GyroFilterType)
@@ -432,6 +434,7 @@ public:
                 PrivateData._uORB_Accel_VIBE_X = pt1FilterApply(&VibeLPF[AAXN], (pow((((float)PrivateData._uORB_MPU9250_AC_X / MPU9250_Accel_LSB) - AccVibeFloorX), 2)));
                 PrivateData._uORB_Accel_VIBE_Y = pt1FilterApply(&VibeLPF[AAYN], (pow((((float)PrivateData._uORB_MPU9250_AC_Y / MPU9250_Accel_LSB) - AccVibeFloorY), 2)));
                 PrivateData._uORB_Accel_VIBE_Z = pt1FilterApply(&VibeLPF[AAZN], (pow((((float)PrivateData._uORB_MPU9250_AC_Z / MPU9250_Accel_LSB) - AccVibeFloorZ), 2)));
+                PrivateData._uORB_Accel_VIBE = sqrt(PrivateData._uORB_Accel_VIBE_X + PrivateData._uORB_Accel_VIBE_Y + PrivateData._uORB_Accel_VIBE_Z);
                 //
                 if (PrivateConfig.AccelFilterCutOff)
                 {
