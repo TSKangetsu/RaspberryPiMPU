@@ -1,7 +1,5 @@
 #pragma once
-#include "_thirdparty/libeigen/Eigen/Dense"
-#include "_thirdparty/libeigen/Eigen/LU"
-
+#include <vector>
 #define MPU9250_ACCEL_LSB 2048.f
 #define MPU9250_GYRO_LSB 16.4
 
@@ -168,8 +166,6 @@ struct MPUData
     int fftindexs[3] = {0};
     std::vector<std::vector<float>> FFTSampleBox;
     float _uORB_Gyro_Dynamic_NotchCenterHZ[3] = {350, 350, 350};
-    Eigen::Matrix3d _uORB_MPU9250_RotationMatrix;
-    Eigen::Quaternion<double> _uORB_MPU9250_Quaternion;
 
     int _uORB_MPU9250_IMUUpdateTime = 0;
     int _uORB_MPU9250_AccelCountDown = 0;

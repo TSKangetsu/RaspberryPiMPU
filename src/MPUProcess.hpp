@@ -11,8 +11,6 @@
 #include "filter.h"
 #include "FFTPlugin.hpp"
 #include "MadgwickAHRS.hpp"
-#include "_thirdparty/libeigen/Eigen/Dense"
-#include "_thirdparty/libeigen/Eigen/LU"
 //
 #include "MPU.hpp"
 #include "MPU9250/MPU9250.hpp"
