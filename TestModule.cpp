@@ -167,19 +167,6 @@ int main(int argc, char *argv[])
                           << "Gryo   Yaw: " << std::setw(7) << std::setfill(' ') << (int)myData._uORB_Gryo___Yaw << "| \n";
                 std::cout << "Real  Roll: " << std::setw(7) << std::setfill(' ') << (int)myData._uORB_Real__Roll << "|"
                           << "Real Pitch: " << std::setw(7) << std::setfill(' ') << (int)myData._uORB_Real_Pitch << "| \n";
-                
-                // Earth frame acceleration display
-                std::cout << "Earth Accel X: " << std::setw(7) << std::setfill(' ') << std::fixed << std::setprecision(1) << myData._uORB_Acceleration_X << "|"
-                          << "Earth Accel Y: " << std::setw(7) << std::setfill(' ') << std::fixed << std::setprecision(1) << myData._uORB_Acceleration_Y << "|"
-                          << "Earth Accel Z: " << std::setw(7) << std::setfill(' ') << std::fixed << std::setprecision(1) << myData._uORB_Acceleration_Z << "| \n";
-                
-                // Get pure acceleration (without gravity)
-                float ax_pure, ay_pure, az_pure;
-                myMPUTest->GetPureAcceleration(ax_pure, ay_pure, az_pure);
-                std::cout << "Pure Accel X: " << std::setw(7) << std::setfill(' ') << std::fixed << std::setprecision(1) << ax_pure << "|"
-                          << "Pure Accel Y: " << std::setw(7) << std::setfill(' ') << std::fixed << std::setprecision(1) << ay_pure << "|"
-                          << "Pure Accel Z: " << std::setw(7) << std::setfill(' ') << std::fixed << std::setprecision(1) << az_pure << "| \n";
-                //
                 TimeEnd = GetTimestamp();
                 if (TimeMax < ((TimeEnd - TimeStart) + TimeNext) || (TimeNext) < 0)
                     usleep(1); // In fact ,this is 50us call by linux kerenl
