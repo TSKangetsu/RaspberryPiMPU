@@ -146,44 +146,6 @@ int main(int argc, char *argv[])
             myData = myMPUTest->MPUSensorsDataGet();
             std::cout << "MPUTypeID: 0x" << std::hex << myData.DeviceType << std::dec << " \n";
             
-            // Check if debug mode is requested
-            bool debug_mode = false;
-            for (int i = 1; i < argc; i++) {
-                if (std::string(argv[i]) == "-d" || std::string(argv[i]) == "--debug") {
-                    debug_mode = true;
-                    break;
-                }
-            }
-            if (debug_mode) {
-                myMPUTest->SetDebugOutput(true);
-                std::cout << "Debug mode enabled - detailed output will be shown\n";
-            }
-            
-            // Check calibration and offer recalibration if needed
-            if (!myMPUTest->IsAccelerometerCalibrated()) {
-                std::cout << "WARNING: Accelerometer calibration appears to be incorrect!\n";
-                std::cout << "Raw Z value should be ~1.0g when stationary, but is showing 0.429g\n";
-                
-                // Show current calibration values
-                std::cout << "Current calibration values:\n";
-                std::cout << "  X Scale: " << AccelCaliData[MPUAccelScalX] << "\n";
-                std::cout << "  Y Scale: " << AccelCaliData[MPUAccelScalY] << "\n";
-                std::cout << "  Z Scale: " << AccelCaliData[MPUAccelScalZ] << "\n";
-                std::cout << "  X Offset: " << AccelCaliData[MPUAccelCaliX] << "\n";
-                std::cout << "  Y Offset: " << AccelCaliData[MPUAccelCaliY] << "\n";
-                std::cout << "  Z Offset: " << AccelCaliData[MPUAccelCaliZ] << "\n";
-                
-                std::cout << "Would you like to recalibrate? (y/n): ";
-                char response;
-                std::cin >> response;
-                if (response == 'y' || response == 'Y') {
-                    std::cout << "Please run calibration mode first: ./RaspberryPiMPU -c\n";
-                    std::cout << "Then restart this test mode.\n";
-                    delete myMPUTest;
-                    return 0;
-                }
-            }
-            
             sleep(2);
             system("clear");
             while (true)
@@ -217,20 +179,6 @@ int main(int argc, char *argv[])
                 std::cout << "Pure Accel X: " << std::setw(7) << std::setfill(' ') << std::fixed << std::setprecision(1) << ax_pure << "|"
                           << "Pure Accel Y: " << std::setw(7) << std::setfill(' ') << std::fixed << std::setprecision(1) << ay_pure << "|"
                           << "Pure Accel Z: " << std::setw(7) << std::setfill(' ') << std::fixed << std::setprecision(1) << az_pure << "| \n";
-                
-                // Debug information (optional)
-                if (myMPUTest->IsAccelerometerCalibrated()) {
-                    std::cout << "Calibration: OK | ";
-                } else {
-                    std::cout << "Calibration: FAIL | ";
-                }
-                
-                // Show raw accelerometer values
-                float ax_raw, ay_raw, az_raw;
-                myMPUTest->GetRawAccelerometerValues(ax_raw, ay_raw, az_raw);
-                std::cout << "Raw (g): X=" << std::setw(6) << std::setfill(' ') << std::fixed << std::setprecision(3) << ax_raw 
-                         << " Y=" << std::setw(6) << std::setfill(' ') << std::fixed << std::setprecision(3) << ay_raw 
-                         << " Z=" << std::setw(6) << std::setfill(' ') << std::fixed << std::setprecision(3) << az_raw << "| \n";
                 //
                 TimeEnd = GetTimestamp();
                 if (TimeMax < ((TimeEnd - TimeStart) + TimeNext) || (TimeNext) < 0)
@@ -245,17 +193,11 @@ int main(int argc, char *argv[])
         case 'h':
             std::cout << "Usage: 'RaspberryPiMPU [option]'";
             std::cout << "[option] -c to calibration accel and save to MPUCali.json , -t is start to check mpu data on console\n";
-            std::cout << "Additional options for -t mode:\n";
-            std::cout << "  -d or --debug: Enable detailed debug output\n";
-            std::cout << "Example: ./RaspberryPiMPU -t -d\n";
             break;
 
         default:
             std::cout << "Usage: 'RaspberryPiMPU [option]'";
             std::cout << "[option] -c to calibration accel and save to MPUCali.json , -t is start to check mpu data on console\n";
-            std::cout << "Additional options for -t mode:\n";
-            std::cout << "  -d or --debug: Enable detailed debug output\n";
-            std::cout << "Example: ./RaspberryPiMPU -t -d\n";
             break;
         }
     }

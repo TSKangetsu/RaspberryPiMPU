@@ -30,48 +30,6 @@
 #include "_thirdparty/LinuxDriver/SPI/Drive_LinuxSPI.h"
 #endif
 
-/**
- * @brief Enhanced MPU9250/ICM20602/ICM42605 IMU processing class with Earth frame accelerometer conversion
- * 
- * This class provides comprehensive IMU data processing including:
- * - Gyroscope and accelerometer data fusion using Madgwick AHRS
- * - Advanced filtering (PT1, Biquad, Notch, Dynamic Notch)
- * - FFT-based vibration analysis
- * - Earth frame accelerometer conversion with:
- *   * Quaternion-based coordinate transformation
- *   * Multiple coordinate system support (NED, ENU, NWU)
- *   * Total acceleration (including gravity) in cm/s²
- *   * Pure acceleration (without gravity) available via GetPureAcceleration()
- * 
- * Usage example:
- * @code
- * MPUConfig config;
- * config.TargetFreqency = 1000;
- * config.AccTargetFreqency = 1000;
- * 
- * RPiMPU9250 imu(config);
- * imu.MPUCalibration(calibration_data);
- * 
- * while (running) {
- *     MPUData data = imu.MPUSensorsDataGet();
- *     
- *     // Access total Earth frame acceleration (cm/s²) - includes gravity
- *     // X: North, Y: West, Z: Up (NWU coordinate system)
- *     float accel_north = data._uORB_Acceleration_X;  // cm/s² (includes gravity)
- *     float accel_west = data._uORB_Acceleration_Y;   // cm/s² (includes gravity)
- *     float accel_up = data._uORB_Acceleration_Z;     // cm/s² (includes gravity, ~980 when stationary)
- *     
- *     // Get pure acceleration (without gravity) - should be ~0 when stationary
- *     float ax_pure, ay_pure, az_pure;
- *     imu.GetPureAcceleration(ax_pure, ay_pure, az_pure);
- *     
- *     // For different coordinate systems, use:
- *     // imu.ConvertAccelToEarthFrameCustom(0); // NED (North-East-Down)
- *     // imu.ConvertAccelToEarthFrameCustom(1); // ENU (East-North-Up)
- *     // imu.ConvertAccelToEarthFrameCustom(2); // NWU (North-West-Up) - Default
- * }
- * @endcode
- */
 class RPiMPU9250
 {
 public:
@@ -564,13 +522,47 @@ public:
         }
         //========================= //=========================Navigation update
         {
-            // Convert accelerometer to Earth frame using quaternion-based transformation
-            ConvertAccelToEarthFrame();
+            if (PrivateData._uORB_MPU9250_AccelCountDown == 1)
+            {
+                float q0 = PrivateData._uORB_Raw_QuaternionQ[0];
+                float q1 = PrivateData._uORB_Raw_QuaternionQ[1];
+                float q2 = PrivateData._uORB_Raw_QuaternionQ[2];
+                float q3 = PrivateData._uORB_Raw_QuaternionQ[3];
+
+                float norm = sqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
+                q0 /= norm;
+                q1 /= norm;
+                q2 /= norm;
+                q3 /= norm;
+
+                float ax = PrivateData._uORB_MPU9250_ADF_X;
+                float ay = PrivateData._uORB_MPU9250_ADF_Y;
+                float az = PrivateData._uORB_MPU9250_ADF_Z;
+
+                float ax_earth = (q0 * q0 + q1 * q1 - q2 * q2 - q3 * q3) * ax +
+                                 (2 * (q1 * q2 - q0 * q3)) * ay +
+                                 (2 * (q1 * q3 + q0 * q2)) * az;
+
+                float ay_earth = (2 * (q1 * q2 + q0 * q3)) * ax +
+                                 (q0 * q0 - q1 * q1 + q2 * q2 - q3 * q3) * ay +
+                                 (2 * (q2 * q3 - q0 * q1)) * az;
+
+                float az_earth = (2 * (q1 * q3 - q0 * q2)) * ax +
+                                 (2 * (q2 * q3 + q0 * q1)) * ay +
+                                 (q0 * q0 - q1 * q1 - q2 * q2 + q3 * q3) * az;
+
+                PrivateData._uORB_MPU9250_A_Static_X = ax_earth;
+                PrivateData._uORB_MPU9250_A_Static_Y = ay_earth;
+                PrivateData._uORB_MPU9250_A_Static_Z = az_earth;
+
+                PrivateData._uORB_Acceleration_X = ax_earth * GravityAccel * 100.0f;
+                PrivateData._uORB_Acceleration_Y = ay_earth * GravityAccel * 100.0f;
+                PrivateData._uORB_Acceleration_Z = az_earth * GravityAccel * 100.0f - 980.f;
+            }
         }
         return PrivateData;
     }
 
-    // This function set Total Angle to Accel Angle immediately , Require MPUSensorsDataGet() finish
     inline void ResetMPUMixAngle()
     {
         AHRSSys->MadgwickResetToAccel();
@@ -579,241 +571,6 @@ public:
     inline void ResetMAGMixYaw()
     {
         AHRSSys->MadgwickResetToMag();
-    }
-
-    // Convert accelerometer data to Earth frame
-    inline void ConvertAccelToEarthFrame()
-    {
-        if (PrivateData._uORB_MPU9250_AccelCountDown == 1)
-        {
-            // Get the current quaternion from AHRS (more accurate than Euler angles)
-            float q0 = PrivateData._uORB_Raw_QuaternionQ[0];
-            float q1 = PrivateData._uORB_Raw_QuaternionQ[1];
-            float q2 = PrivateData._uORB_Raw_QuaternionQ[2];
-            float q3 = PrivateData._uORB_Raw_QuaternionQ[3];
-            
-            // Normalize quaternion
-            float norm = sqrt(q0*q0 + q1*q1 + q2*q2 + q3*q3);
-            q0 /= norm;
-            q1 /= norm;
-            q2 /= norm;
-            q3 /= norm;
-            
-            // Accelerometer readings in sensor frame (already filtered)
-            float ax = PrivateData._uORB_MPU9250_ADF_X;
-            float ay = PrivateData._uORB_MPU9250_ADF_Y;
-            float az = PrivateData._uORB_MPU9250_ADF_Z;
-            
-            // Debug: Print raw accelerometer values
-            static int debug_counter = 0;
-            if (debug_enabled && debug_counter++ % 100 == 0) { // Print every 100th sample
-                std::cout << "Raw Accel (g): X=" << ax << " Y=" << ay << " Z=" << az << std::endl;
-                std::cout << "Quaternion: q0=" << q0 << " q1=" << q1 << " q2=" << q2 << " q3=" << q3 << std::endl;
-            }
-            
-            // Convert to Earth frame using quaternion rotation
-            // Earth frame: X North, Y West, Z Up
-            float ax_earth = (q0*q0 + q1*q1 - q2*q2 - q3*q3) * ax +
-                           (2 * (q1*q2 - q0*q3)) * ay +
-                           (2 * (q1*q3 + q0*q2)) * az;
-                           
-            float ay_earth = (2 * (q1*q2 + q0*q3)) * ax +
-                           (q0*q0 - q1*q1 + q2*q2 - q3*q3) * ay +
-                           (2 * (q2*q3 - q0*q1)) * az;
-                           
-            float az_earth = (2 * (q1*q3 - q0*q2)) * ax +
-                           (2 * (q2*q3 + q0*q1)) * ay +
-                           (q0*q0 - q1*q1 - q2*q2 + q3*q3) * az;
-            
-            // Debug: Print Earth frame values before unit conversion
-            if (debug_enabled && debug_counter % 100 == 0) {
-                std::cout << "Earth Frame (g): X=" << ax_earth << " Y=" << ay_earth << " Z=" << az_earth << std::endl;
-            }
-            
-            // Store Earth frame acceleration (with gravity still included)
-            PrivateData._uORB_MPU9250_A_Static_X = ax_earth;
-            PrivateData._uORB_MPU9250_A_Static_Y = ay_earth;
-            PrivateData._uORB_MPU9250_A_Static_Z = az_earth;
-            
-            // Convert to cm/s² units (1 m/s² = 100 cm/s²)
-            PrivateData._uORB_Acceleration_X = ax_earth * GravityAccel * 100.0f;
-            PrivateData._uORB_Acceleration_Y = ay_earth * GravityAccel * 100.0f;
-            PrivateData._uORB_Acceleration_Z = az_earth * GravityAccel * 100.0f;
-            
-            // Debug: Print final values
-            if (debug_enabled && debug_counter % 100 == 0) {
-                std::cout << "Final (cm/s²): X=" << PrivateData._uORB_Acceleration_X 
-                         << " Y=" << PrivateData._uORB_Acceleration_Y 
-                         << " Z=" << PrivateData._uORB_Acceleration_Z << std::endl;
-                std::cout << "GravityAccel=" << GravityAccel << std::endl;
-                std::cout << "---" << std::endl;
-            }
-        }
-    }
-
-    // Convert accelerometer to Earth frame with custom coordinate system
-    // frame_type: 0 = NED (North-East-Down), 1 = ENU (East-North-Up), 2 = NWU (North-West-Up)
-    inline void ConvertAccelToEarthFrameCustom(int frame_type = 0)
-    {
-        if (PrivateData._uORB_MPU9250_AccelCountDown == 1)
-        {
-            // Get the current quaternion from AHRS
-            float q0 = PrivateData._uORB_Raw_QuaternionQ[0];
-            float q1 = PrivateData._uORB_Raw_QuaternionQ[1];
-            float q2 = PrivateData._uORB_Raw_QuaternionQ[2];
-            float q3 = PrivateData._uORB_Raw_QuaternionQ[3];
-            
-            // Normalize quaternion
-            float norm = sqrt(q0*q0 + q1*q1 + q2*q2 + q3*q3);
-            q0 /= norm;
-            q1 /= norm;
-            q2 /= norm;
-            q3 /= norm;
-            
-            // Accelerometer readings in sensor frame
-            float ax = PrivateData._uORB_MPU9250_ADF_X;
-            float ay = PrivateData._uORB_MPU9250_ADF_Y;
-            float az = PrivateData._uORB_MPU9250_ADF_Z;
-            
-            float ax_earth, ay_earth, az_earth;
-            
-            switch (frame_type) {
-                case 0: // NED (North-East-Down)
-                    ax_earth = (q0*q0 + q1*q1 - q2*q2 - q3*q3) * ax +
-                              (2 * (q1*q2 - q0*q3)) * ay +
-                              (2 * (q1*q3 + q0*q2)) * az;
-                    ay_earth = (2 * (q1*q2 + q0*q3)) * ax +
-                              (q0*q0 - q1*q1 + q2*q2 - q3*q3) * ay +
-                              (2 * (q2*q3 - q0*q1)) * az;
-                    az_earth = (2 * (q1*q3 - q0*q2)) * ax +
-                              (2 * (q2*q3 + q0*q1)) * ay +
-                              (q0*q0 - q1*q1 - q2*q2 + q3*q3) * az;
-                    break;
-                    
-                case 1: // ENU (East-North-Up)
-                    ax_earth = (2 * (q1*q2 + q0*q3)) * ax +
-                              (q0*q0 - q1*q1 + q2*q2 - q3*q3) * ay +
-                              (2 * (q2*q3 - q0*q1)) * az;
-                    ay_earth = (q0*q0 + q1*q1 - q2*q2 - q3*q3) * ax +
-                              (2 * (q1*q2 - q0*q3)) * ay +
-                              (2 * (q1*q3 + q0*q2)) * az;
-                    az_earth = (2 * (q1*q3 - q0*q2)) * ax +
-                              (2 * (q2*q3 + q0*q1)) * ay +
-                              (q0*q0 - q1*q1 - q2*q2 + q3*q3) * az;
-                    break;
-                    
-                case 2: // NWU (North-West-Up) - Default
-                default:
-                    ax_earth = (q0*q0 + q1*q1 - q2*q2 - q3*q3) * ax +
-                              (2 * (q1*q2 - q0*q3)) * ay +
-                              (2 * (q1*q3 + q0*q2)) * az;
-                    ay_earth = (2 * (q1*q2 + q0*q3)) * ax +
-                              (q0*q0 - q1*q1 + q2*q2 - q3*q3) * ay +
-                              (2 * (q2*q3 - q0*q1)) * az;
-                    az_earth = (2 * (q1*q3 - q0*q2)) * ax +
-                              (2 * (q2*q3 + q0*q1)) * ay +
-                              (q0*q0 - q1*q1 - q2*q2 + q3*q3) * az;
-                    break;
-            }
-            
-            // Store Earth frame acceleration
-            PrivateData._uORB_MPU9250_A_Static_X = ax_earth;
-            PrivateData._uORB_MPU9250_A_Static_Y = ay_earth;
-            PrivateData._uORB_MPU9250_A_Static_Z = az_earth;
-            
-            // Convert to cm/s² units (1 m/s² = 100 cm/s²)
-            PrivateData._uORB_Acceleration_X = ax_earth * GravityAccel * 100.0f;
-            PrivateData._uORB_Acceleration_Y = ay_earth * GravityAccel * 100.0f;
-            PrivateData._uORB_Acceleration_Z = az_earth * GravityAccel * 100.0f;
-        }
-    }
-
-    // Get pure acceleration (without gravity) in Earth frame
-    inline void GetPureAcceleration(float& ax_pure, float& ay_pure, float& az_pure)
-    {
-        // Get the current quaternion from AHRS
-        float q0 = PrivateData._uORB_Raw_QuaternionQ[0];
-        float q1 = PrivateData._uORB_Raw_QuaternionQ[1];
-        float q2 = PrivateData._uORB_Raw_QuaternionQ[2];
-        float q3 = PrivateData._uORB_Raw_QuaternionQ[3];
-        
-        // Normalize quaternion
-        float norm = sqrt(q0*q0 + q1*q1 + q2*q2 + q3*q3);
-        q0 /= norm;
-        q1 /= norm;
-        q2 /= norm;
-        q3 /= norm;
-        
-        // Accelerometer readings in sensor frame
-        float ax = PrivateData._uORB_MPU9250_ADF_X;
-        float ay = PrivateData._uORB_MPU9250_ADF_Y;
-        float az = PrivateData._uORB_MPU9250_ADF_Z;
-        
-        // Convert to Earth frame using quaternion rotation (NWU system)
-        float ax_earth = (q0*q0 + q1*q1 - q2*q2 - q3*q3) * ax +
-                       (2 * (q1*q2 - q0*q3)) * ay +
-                       (2 * (q1*q3 + q0*q2)) * az;
-                       
-        float ay_earth = (2 * (q1*q2 + q0*q3)) * ax +
-                       (q0*q0 - q1*q1 + q2*q2 - q3*q3) * ay +
-                       (2 * (q2*q3 - q0*q1)) * az;
-                       
-        float az_earth = (2 * (q1*q3 - q0*q2)) * ax +
-                       (2 * (q2*q3 + q0*q1)) * ay +
-                       (q0*q0 - q1*q1 - q2*q2 + q3*q3) * az;
-        
-        // Remove gravity component (gravity points down in NWU system)
-        az_earth -= 1.0; // Remove 1g from Z component
-        
-        // Convert to cm/s² units
-        ax_pure = ax_earth * GravityAccel * 100.0f;
-        ay_pure = ay_earth * GravityAccel * 100.0f;
-        az_pure = az_earth * GravityAccel * 100.0f;
-    }
-
-    // Get raw accelerometer values for debugging
-    inline void GetRawAccelerometerValues(float& ax_raw, float& ay_raw, float& az_raw)
-    {
-        ax_raw = PrivateData._uORB_MPU9250_ADF_X;
-        ay_raw = PrivateData._uORB_MPU9250_ADF_Y;
-        az_raw = PrivateData._uORB_MPU9250_ADF_Z;
-    }
-
-    // Check if accelerometer is properly calibrated
-    inline bool IsAccelerometerCalibrated()
-    {
-        // Check if calibration values are reasonable
-        if (PrivateData._flag_MPU9250_A_X_Scal < 0.5f || PrivateData._flag_MPU9250_A_X_Scal > 2.0f) return false;
-        if (PrivateData._flag_MPU9250_A_Y_Scal < 0.5f || PrivateData._flag_MPU9250_A_Y_Scal > 2.0f) return false;
-        if (PrivateData._flag_MPU9250_A_Z_Scal < 0.5f || PrivateData._flag_MPU9250_A_Z_Scal > 2.0f) return false;
-        
-        // Check if static vector is reasonable (should be close to 1.0g when stationary)
-        if (PrivateData._uORB_MPU9250_A_Static_Vector < 0.5f || PrivateData._uORB_MPU9250_A_Static_Vector > 1.5f) return false;
-        
-        return true;
-    }
-
-    // Enable/disable debug output
-    inline void SetDebugOutput(bool enable)
-    {
-        debug_enabled = enable;
-    }
-
-    // Get debug information as string
-    inline std::string GetDebugInfo()
-    {
-        std::ostringstream oss;
-        oss << "Raw Accel (g): X=" << PrivateData._uORB_MPU9250_ADF_X 
-            << " Y=" << PrivateData._uORB_MPU9250_ADF_Y 
-            << " Z=" << PrivateData._uORB_MPU9250_ADF_Z << std::endl;
-        oss << "Static Vector: " << PrivateData._uORB_MPU9250_A_Static_Vector << std::endl;
-        oss << "Calibration: X_scale=" << PrivateData._flag_MPU9250_A_X_Scal 
-            << " Y_scale=" << PrivateData._flag_MPU9250_A_Y_Scal 
-            << " Z_scale=" << PrivateData._flag_MPU9250_A_Z_Scal << std::endl;
-        oss << "Final (cm/s²): X=" << PrivateData._uORB_Acceleration_X 
-            << " Y=" << PrivateData._uORB_Acceleration_Y 
-            << " Z=" << PrivateData._uORB_Acceleration_Z << std::endl;
-        return oss.str();
     }
 
     inline ~RPiMPU9250()
@@ -1053,7 +810,6 @@ private:
     double _Tmp_Gryo_Y_Cali_ON = 0;
     double _Tmp_Gryo_Z_Cali_ON = 0;
     double _Tmp_Accel_Static_Cali_ON = 0;
-    
     // CleanFlight Filter
     pt1Filter_t VibeLPF[3];
     pt1Filter_t VibeFloorLPF[3];
@@ -1079,5 +835,4 @@ private:
     int GyroDynamicNotchCenterLast[3] = {350, 350, 350};
     biquadFilter_t GryoFilterDynamicNotch[3];
     biquadFilter_t GryoFilterDynamicFreq[3];
-    bool debug_enabled = false;
 };
