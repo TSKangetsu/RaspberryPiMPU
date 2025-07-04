@@ -555,7 +555,7 @@ public:
 
                 PrivateData._uORB_Acceleration_X = ax_earth * GravityAccel * 100.0f;
                 PrivateData._uORB_Acceleration_Y = ay_earth * GravityAccel * 100.0f;
-                PrivateData._uORB_Acceleration_Z = az_earth * GravityAccel * 100.0f - 980.f;
+                PrivateData._uORB_Acceleration_Z = (az_earth - PrivateData._uORB_MPU9250_A_Static_Vector) * GravityAccel * 100.0f;
             }
         }
         return PrivateData;
