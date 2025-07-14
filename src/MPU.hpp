@@ -167,7 +167,7 @@ struct MPUData
     std::vector<std::vector<float>> FFTSampleBox;
     float _uORB_Gyro_Dynamic_NotchCenterHZ[3] = {350, 350, 350};
 
-    int _uORB_MPU9250_IMUUpdateTime = 0;
+    uint64_t _uORB_MPU9250_IMUUpdateTime = 0;
     int _uORB_MPU9250_AccelCountDown = 0;
     int _uORB_MPU9250_CalibrationCountDown = 0;
 };

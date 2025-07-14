@@ -782,7 +782,7 @@ private:
         }
     };
 
-    inline int GetTimestamp()
+    inline uint64_t GetTimestamp()
     {
         struct timespec tv;
         clock_gettime(CLOCK_MONOTONIC, &tv);
@@ -790,13 +790,13 @@ private:
     }
 
     std::mutex deviceLock;
-    int IMUstartuptime = 0;
+    uint64_t IMUstartuptime = 0;
     int Sensor_fd;
     float MPU9250_Gryo_LSB = MPU9250_GYRO_LSB;   // +-2000dps
     float MPU9250_Accel_LSB = MPU9250_ACCEL_LSB; //+-16g
     uint8_t Tmp_MPU9250_Buffer[20] = {0};
     bool AHRSEnable = false;
-    int LastUpdate = 0;
+    uint64_t LastUpdate = 0;
     MPUData PrivateData;
     MPUConfig PrivateConfig;
     std::unique_ptr<MadgwickAHRS> AHRSSys;
