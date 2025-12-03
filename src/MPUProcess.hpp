@@ -449,6 +449,8 @@ public:
                         PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelFilterBLPF[AAZN], ((float)PrivateData._uORB_MPU9250_AC_Z / MPU9250_Accel_LSB));
                         break;
                     }
+                // std::cout << "PrivateData._uORB_MPU9250_AC_X / MPU9250_Accel_LSB:"<<PrivateData._uORB_MPU9250_AC_X / MPU9250_Accel_LSB<<"\r\n";
+                // std::cout << "PrivateData._uORB_MPU9250_ADF_X :"<<PrivateData._uORB_MPU9250_ADF_X <<"\r\n";
 
                     if (PrivateConfig.AccelFilterNotchCutOff)
                     {
@@ -487,7 +489,7 @@ public:
                 PrivateData.MPUMixTraditionBeta = 0.f;
 
             if (!AHRSEnable)
-                AHRSSys->MadgwickAHRSIMUApply(PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo___Yaw,
+                AHRSSys->MadgwickAHRSIMUApply(PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo_Pitch, -PrivateData._uORB_Gryo___Yaw,
                                               (PrivateData._uORB_MPU9250_ADF_X),
                                               (PrivateData._uORB_MPU9250_ADF_Y),
                                               (PrivateData._uORB_MPU9250_ADF_Z),
@@ -512,6 +514,8 @@ public:
             PrivateData._uORB_Real__Roll *= 180.f / PI;
             PrivateData._uORB_Real_Pitch *= 180.f / PI;
             PrivateData._uORB_Real___Yaw *= 180.f / PI;
+
+            PrivateData._uORB_Real___Yaw = -(PrivateData._uORB_Real___Yaw + 90.0f);
             PrivateData._uORB_Real___Yaw = PrivateData._uORB_Real___Yaw > 0 ? 360 - PrivateData._uORB_Real___Yaw : PrivateData._uORB_Real___Yaw;
             PrivateData._uORB_Real___Yaw = PrivateData._uORB_Real___Yaw < 0 ? -1 * PrivateData._uORB_Real___Yaw : PrivateData._uORB_Real___Yaw;
             //
@@ -537,25 +541,51 @@ public:
                 float ay = PrivateData._uORB_MPU9250_ADF_Y;
                 float az = PrivateData._uORB_MPU9250_ADF_Z;
 
-                float ax_earth = (q0 * q0 + q1 * q1 - q2 * q2 - q3 * q3) * ax +
-                                 (2 * (q1 * q2 - q0 * q3)) * ay +
-                                 (2 * (q1 * q3 + q0 * q2)) * az;
+                PrivateData.Slant_Angle = 1 - 2*(q1 * q1 + q2 * q2);
+                PrivateData.Slant_Angle = fmax(0.5, fmin(1.0, PrivateData.Slant_Angle));
+                // std::cout << "\033[200A";
+                // std::cout << "\033[K";
+                // std::cout << "thorrt:"<<thorrt<<"\r\n";
+                // std::cout << "Slant_Angle:"<<Slant_Angle<<"\r\n";
+                // std::cout << "q1:"<<q1<<"\r\n";
+                
+                // float ay_earth = (q0 * q0 + q1 * q1 - q2 * q2 - q3 * q3) * ax +
+                //                  (2 * (q1 * q2 - q0 * q3)) * ay +
+                //                  (2 * (q1 * q3 + q0 * q2)) * az;
 
-                float ay_earth = (2 * (q1 * q2 + q0 * q3)) * ax +
-                                 (q0 * q0 - q1 * q1 + q2 * q2 - q3 * q3) * ay +
-                                 (2 * (q2 * q3 - q0 * q1)) * az;
+                // float ax_earth = (2 * (q1 * q2 + q0 * q3)) * ax +
+                //                  (q0 * q0 - q1 * q1 + q2 * q2 - q3 * q3) * ay +
+                //                  (2 * (q2 * q3 - q0 * q1)) * az;
 
-                float az_earth = (2 * (q1 * q3 - q0 * q2)) * ax +
-                                 (2 * (q2 * q3 + q0 * q1)) * ay +
-                                 (q0 * q0 - q1 * q1 - q2 * q2 + q3 * q3) * az;
+                // float az_earth = (2 * (q1 * q3 - q0 * q2)) * ax +
+                //                  (2 * (q2 * q3 + q0 * q1)) * ay +
+                //                  (q0 * q0 - q1 * q1 - q2 * q2 + q3 * q3) * az;
 
-                PrivateData._uORB_MPU9250_A_Static_X = ax_earth;
-                PrivateData._uORB_MPU9250_A_Static_Y = ay_earth;
-                PrivateData._uORB_MPU9250_A_Static_Z = az_earth;
+                // PrivateData._uORB_MPU9250_A_Static_X = ax_earth * -1;
+                // PrivateData._uORB_MPU9250_A_Static_Y = ay_earth * -1;
+                // PrivateData._uORB_MPU9250_A_Static_Z = az_earth;
 
-                PrivateData._uORB_Acceleration_X = ax_earth * GravityAccel * 100.0f;
-                PrivateData._uORB_Acceleration_Y = ay_earth * GravityAccel * 100.0f;
-                PrivateData._uORB_Acceleration_Z = (az_earth - PrivateData._uORB_MPU9250_A_Static_Vector) * GravityAccel * 100.0f;
+                // PrivateData._uORB_Acceleration_X = ax_earth * GravityAccel * -1 * 100.0f;
+                // PrivateData._uORB_Acceleration_Y = ay_earth * GravityAccel * -1 * 100.0f;
+                // PrivateData._uORB_Acceleration_Z = (az_earth - PrivateData._uORB_MPU9250_A_Static_Vector) * GravityAccel * 100.0f;
+
+                PrivateData._uORB_MPU9250_Quaternion = Eigen::AngleAxisd(((PrivateData._uORB_Real__Roll - PrivateData._flag_MPU9250_A_TR_Cali) * (PI / 180.f)), Eigen::Vector3d::UnitZ()) *
+                                        Eigen::AngleAxisd(((PrivateData._uORB_Real_Pitch - PrivateData._flag_MPU9250_A_TP_Cali) * (PI / 180.f)), Eigen::Vector3d::UnitY()) *
+                                        Eigen::AngleAxisd((0 * (PI / 180.f)), Eigen::Vector3d::UnitX());
+
+                PrivateData._uORB_MPU9250_RotationMatrix = PrivateData._uORB_MPU9250_Quaternion.normalized().toRotationMatrix();
+                Eigen::Matrix<double, 1, 3> AccelRaw;
+                AccelRaw << PrivateData._uORB_MPU9250_ADF_Z,
+                    PrivateData._uORB_MPU9250_ADF_Y,
+                    PrivateData._uORB_MPU9250_ADF_X;
+
+                Eigen::Matrix<double, 1, 3> AccelStatic = AccelRaw * PrivateData._uORB_MPU9250_RotationMatrix;
+                PrivateData._uORB_MPU9250_A_Static_Z = AccelStatic[0] - PrivateData._uORB_MPU9250_A_Static_Vector;
+                PrivateData._uORB_MPU9250_A_Static_X = -1.f * AccelStatic[1];
+                PrivateData._uORB_MPU9250_A_Static_Y = -1.f * AccelStatic[2];
+                PrivateData._uORB_Acceleration_X = ((float)PrivateData._uORB_MPU9250_A_Static_X) * GravityAccel * 100.f;
+                PrivateData._uORB_Acceleration_Y = ((float)PrivateData._uORB_MPU9250_A_Static_Y) * GravityAccel * 100.f;
+                PrivateData._uORB_Acceleration_Z = ((float)PrivateData._uORB_MPU9250_A_Static_Z) * GravityAccel * 100.f;
             }
         }
         return PrivateData;
