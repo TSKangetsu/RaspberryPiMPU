@@ -89,6 +89,9 @@ public:
                 biquadFilterInitLPF(&AccelFilterBLPF[AAXN], PrivateConfig.AccelFilterCutOff, ACCDT);
                 biquadFilterInitLPF(&AccelFilterBLPF[AAYN], PrivateConfig.AccelFilterCutOff, ACCDT);
                 biquadFilterInitLPF(&AccelFilterBLPF[AAZN], PrivateConfig.AccelFilterCutOff, ACCDT);
+                biquadFilterInitLPF(&AccelAnotherFilterBLPF[AAXN], 150, ACCDT);
+                biquadFilterInitLPF(&AccelAnotherFilterBLPF[AAYN], 150, ACCDT);
+                biquadFilterInitLPF(&AccelAnotherFilterBLPF[AAZN], 150, ACCDT);
                 break;
             }
 
@@ -447,6 +450,9 @@ public:
                         PrivateData._uORB_MPU9250_ADF_X = biquadFilterApply(&AccelFilterBLPF[AAXN], ((float)PrivateData._uORB_MPU9250_AC_X / MPU9250_Accel_LSB));
                         PrivateData._uORB_MPU9250_ADF_Y = biquadFilterApply(&AccelFilterBLPF[AAYN], ((float)PrivateData._uORB_MPU9250_AC_Y / MPU9250_Accel_LSB));
                         PrivateData._uORB_MPU9250_ADF_Z = biquadFilterApply(&AccelFilterBLPF[AAZN], ((float)PrivateData._uORB_MPU9250_AC_Z / MPU9250_Accel_LSB));
+                        PrivateData._uORB_MPU9250_ADF_Another_X = biquadFilterApply(&AccelAnotherFilterBLPF[AAXN], ((float)PrivateData._uORB_MPU9250_AC_X / MPU9250_Accel_LSB));
+                        PrivateData._uORB_MPU9250_ADF_Another_Y = biquadFilterApply(&AccelAnotherFilterBLPF[AAYN], ((float)PrivateData._uORB_MPU9250_AC_Y / MPU9250_Accel_LSB));
+                        PrivateData._uORB_MPU9250_ADF_Another_Z = biquadFilterApply(&AccelAnotherFilterBLPF[AAZN], ((float)PrivateData._uORB_MPU9250_AC_Z / MPU9250_Accel_LSB));
                         break;
                     }
                 // std::cout << "PrivateData._uORB_MPU9250_AC_X / MPU9250_Accel_LSB:"<<PrivateData._uORB_MPU9250_AC_X / MPU9250_Accel_LSB<<"\r\n";
@@ -847,6 +853,7 @@ private:
     biquadFilter_t GryoFilterBLPF[3];
     biquadFilter_t GryoFilterBLPFST2[3];
     biquadFilter_t AccelFilterBLPF[3];
+    biquadFilter_t AccelAnotherFilterBLPF[3];
     biquadFilter_t GyroNotchFilter[3];
     biquadFilter_t AccelNotchFilter[3];
     // Dynamic Filter

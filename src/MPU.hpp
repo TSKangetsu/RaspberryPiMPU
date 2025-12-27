@@ -125,6 +125,10 @@ struct MPUData
     float _uORB_MPU9250_ADF_X = 0;
     float _uORB_MPU9250_ADF_Y = 0;
     float _uORB_MPU9250_ADF_Z = 0;
+
+    float _uORB_MPU9250_ADF_Another_X = 0;
+    float _uORB_MPU9250_ADF_Another_Y = 0;
+    float _uORB_MPU9250_ADF_Another_Z = 0;
     bool _uORB_MPU9250_ACC_Clipped = false;
 
     float _uORB_MPU9250_A_Static_X = 0;
@@ -166,6 +170,8 @@ struct MPUData
     double _flag_MPU9250_A_TR_Cali = 0;
 
     float Slant_Angle = 1.0;
+
+
     // float FFTSampleBox[3][25] = {{0}};
     int fftindexs[3] = {0};
     std::vector<std::vector<float>> FFTSampleBox;
