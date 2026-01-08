@@ -77,6 +77,11 @@ public:
                 biquadFilterInitLPF(&GryoFilterBLPFST2[GAZY], PrivateConfig.GyroFilterCutOffST2, DT);
                 break;
             }
+            //
+            pt1FilterInit(&AccelQFilterLPF[AAXN], ACC_AHRS_LPF, ACCDT * 1e-6f);
+            pt1FilterInit(&AccelQFilterLPF[AAYN], ACC_AHRS_LPF, ACCDT * 1e-6f);
+            pt1FilterInit(&AccelQFilterLPF[AAZN], ACC_AHRS_LPF, ACCDT * 1e-6f);
+            //
             switch (PrivateConfig.AccelFilterType)
             {
             case FilterLPFPT1:
@@ -434,6 +439,10 @@ public:
                 PrivateData._uORB_Accel_VIBE_Z = pt1FilterApply(&VibeLPF[AAZN], (pow((((float)PrivateData._uORB_MPU9250_AC_Z / MPU9250_Accel_LSB) - AccVibeFloorZ), 2)));
                 PrivateData._uORB_Accel_VIBE = sqrt(PrivateData._uORB_Accel_VIBE_X + PrivateData._uORB_Accel_VIBE_Y + PrivateData._uORB_Accel_VIBE_Z);
                 //
+                PrivateData._uORB_MPU9250_ADF_Q_X = pt1FilterApply(&AccelQFilterLPF[AAXN], ((float)PrivateData._uORB_MPU9250_AC_X / MPU9250_Accel_LSB));
+                PrivateData._uORB_MPU9250_ADF_Q_Y = pt1FilterApply(&AccelQFilterLPF[AAYN], ((float)PrivateData._uORB_MPU9250_AC_Y / MPU9250_Accel_LSB));
+                PrivateData._uORB_MPU9250_ADF_Q_Z = pt1FilterApply(&AccelQFilterLPF[AAZN], ((float)PrivateData._uORB_MPU9250_AC_Z / MPU9250_Accel_LSB));
+
                 if (PrivateConfig.AccelFilterCutOff)
                 {
                     switch (PrivateConfig.AccelFilterType)
@@ -474,8 +483,8 @@ public:
                 PrivateData._uORB_MPU9250_A_Vector = sqrtf((PrivateData._uORB_MPU9250_ADF_X * PrivateData._uORB_MPU9250_ADF_X) +
                                                            (PrivateData._uORB_MPU9250_ADF_Y * PrivateData._uORB_MPU9250_ADF_Y) +
                                                            (PrivateData._uORB_MPU9250_ADF_Z * PrivateData._uORB_MPU9250_ADF_Z));
-                PrivateData._uORB_Accel_Pitch = -1 * atan2((float)PrivateData._uORB_MPU9250_ADF_X, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
-                PrivateData._uORB_Accel__Roll = atan2((float)PrivateData._uORB_MPU9250_ADF_Y, PrivateData._uORB_MPU9250_ADF_Z) * 180.f / PI;
+                PrivateData._uORB_Accel_Pitch = -1 * atan2((float)PrivateData._uORB_MPU9250_ADF_Q_X, PrivateData._uORB_MPU9250_ADF_Q_Z) * 180.f / PI;
+                PrivateData._uORB_Accel__Roll = atan2((float)PrivateData._uORB_MPU9250_ADF_Q_Y, PrivateData._uORB_MPU9250_ADF_Q_Z) * 180.f / PI;
             }
         }
         //========================= //=========================AHRS Update
@@ -488,15 +497,15 @@ public:
 
             if (!AHRSEnable)
                 AHRSSys->MadgwickAHRSIMUApply(PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo___Yaw,
-                                              (PrivateData._uORB_MPU9250_ADF_X),
-                                              (PrivateData._uORB_MPU9250_ADF_Y),
-                                              (PrivateData._uORB_MPU9250_ADF_Z),
+                                              (PrivateData._uORB_MPU9250_ADF_Q_X),
+                                              (PrivateData._uORB_MPU9250_ADF_Q_Y),
+                                              (PrivateData._uORB_MPU9250_ADF_Q_Z),
                                               ((float)PrivateData._uORB_MPU9250_IMUUpdateTime * 1e-6f));
             else
                 AHRSSys->MadgwickAHRSApply(PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo___Yaw,
-                                           (PrivateData._uORB_MPU9250_ADF_X),
-                                           (PrivateData._uORB_MPU9250_ADF_Y),
-                                           (PrivateData._uORB_MPU9250_ADF_Z),
+                                           (PrivateData._uORB_MPU9250_ADF_Q_X),
+                                           (PrivateData._uORB_MPU9250_ADF_Q_Y),
+                                           (PrivateData._uORB_MPU9250_ADF_Q_Z),
                                            (_Tmp_AHRS_MAG_X),
                                            (_Tmp_AHRS_MAG_Y),
                                            (_Tmp_AHRS_MAG_Z),
@@ -814,6 +823,7 @@ private:
     pt1Filter_t GryoFilterLPF[3];
     pt1Filter_t GryoFilterLPFST2[3];
     pt1Filter_t AccelFilterLPF[3];
+    pt1Filter_t AccelQFilterLPF[3];
     biquadFilter_t GryoFilterBLPF[3];
     biquadFilter_t GryoFilterBLPFST2[3];
     biquadFilter_t AccelFilterBLPF[3];

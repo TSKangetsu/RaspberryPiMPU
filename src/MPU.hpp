@@ -38,6 +38,7 @@
 #define ACC_VIBE_FILT_HZ 2.f
 #define MAX_ACC_NEARNESS 0.33 // 33% or G error soft-accepted (0.67-1.33G)
 #define ACC_CLIPPING_THRESHOLD_G 7.9f
+#define ACC_AHRS_LPF 3.f
 
 #ifndef M_Ef
 #define M_Ef 2.71828182845904523536f
@@ -122,6 +123,9 @@ struct MPUData
     float _uORB_MPU9250_ADF_X = 0;
     float _uORB_MPU9250_ADF_Y = 0;
     float _uORB_MPU9250_ADF_Z = 0;
+    float _uORB_MPU9250_ADF_Q_X = 0;
+    float _uORB_MPU9250_ADF_Q_Y = 0;
+    float _uORB_MPU9250_ADF_Q_Z = 0;
     bool _uORB_MPU9250_ACC_Clipped = false;
 
     float _uORB_MPU9250_A_Static_X = 0;
