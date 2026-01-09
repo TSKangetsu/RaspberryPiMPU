@@ -36,7 +36,7 @@
 #define DYN_NOTCH_SMOOTH_FREQ_HZ 50.f
 #define ACC_VIBE_FLOOR_FILT_HZ 5.f
 #define ACC_VIBE_FILT_HZ 2.f
-#define MAX_ACC_NEARNESS 0.33 // 33% or G error soft-accepted (0.67-1.33G)
+#define MAX_ACC_NEARNESS 0.20 // 20% or G error soft-accepted (0.8 - 1.2G)
 #define ACC_CLIPPING_THRESHOLD_G 7.9f
 #define ACC_AHRS_LPF 3.f
 

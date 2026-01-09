@@ -489,11 +489,11 @@ public:
         }
         //========================= //=========================AHRS Update
         {
-            if ((PrivateData._uORB_MPU9250_A_Vector > (PrivateData._uORB_MPU9250_A_Static_Vector - MAX_ACC_NEARNESS)) &&
-                (PrivateData._uORB_MPU9250_A_Vector < (PrivateData._uORB_MPU9250_A_Static_Vector + MAX_ACC_NEARNESS)))
-                PrivateData.MPUMixTraditionBeta = PrivateConfig.GyroToAccelBeta;
-            else
-                PrivateData.MPUMixTraditionBeta = 0.f;
+            PrivateData.MPUMixTraditionBeta =
+                PrivateConfig.GyroToAccelBeta *
+                exp(-pow((PrivateData._uORB_MPU9250_A_Vector - PrivateData._uORB_MPU9250_A_Static_Vector), 2) / (2 * pow(MAX_ACC_NEARNESS, 2)));
+
+            AHRSSys->MadgwickSetAccelWeight(PrivateData.MPUMixTraditionBeta);
 
             if (!AHRSEnable)
                 AHRSSys->MadgwickAHRSIMUApply(PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo___Yaw,
@@ -511,7 +511,6 @@ public:
                                            (_Tmp_AHRS_MAG_Z),
                                            ((float)PrivateData._uORB_MPU9250_IMUUpdateTime * 1e-6f));
 
-            AHRSSys->MadgwickSetAccelWeight(PrivateData.MPUMixTraditionBeta);
             AHRSSys->MadgwickAHRSGetQ(PrivateData._uORB_Raw_QuaternionQ[0],
                                       PrivateData._uORB_Raw_QuaternionQ[1],
                                       PrivateData._uORB_Raw_QuaternionQ[2],
@@ -531,40 +530,119 @@ public:
         {
             if (PrivateData._uORB_MPU9250_AccelCountDown == 1)
             {
+                // float q0 = PrivateData._uORB_Raw_QuaternionQ[0];
+                // float q1 = PrivateData._uORB_Raw_QuaternionQ[1];
+                // float q2 = PrivateData._uORB_Raw_QuaternionQ[2];
+                // float q3 = PrivateData._uORB_Raw_QuaternionQ[3];
+
+                // float norm = sqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
+                // q0 /= norm;
+                // q1 /= norm;
+                // q2 /= norm;
+                // q3 /= norm;
+
+                // float ax = PrivateData._uORB_MPU9250_ADF_X;
+                // float ay = PrivateData._uORB_MPU9250_ADF_Y;
+                // float az = PrivateData._uORB_MPU9250_ADF_Z;
+
+                // float ax_earth = (q0 * q0 + q1 * q1 - q2 * q2 - q3 * q3) * ax +
+                //                  (2 * (q1 * q2 - q0 * q3)) * ay +
+                //                  (2 * (q1 * q3 + q0 * q2)) * az;
+
+                // float ay_earth = (2 * (q1 * q2 + q0 * q3)) * ax +
+                //                  (q0 * q0 - q1 * q1 + q2 * q2 - q3 * q3) * ay +
+                //                  (2 * (q2 * q3 - q0 * q1)) * az;
+
+                // float az_earth = (2 * (q1 * q3 - q0 * q2)) * ax +
+                //                  (2 * (q2 * q3 + q0 * q1)) * ay +
+                //                  (q0 * q0 - q1 * q1 - q2 * q2 + q3 * q3) * az;
+
+                // PrivateData._uORB_MPU9250_A_Static_X = ax_earth;
+                // PrivateData._uORB_MPU9250_A_Static_Y = ay_earth;
+                // PrivateData._uORB_MPU9250_A_Static_Z = az_earth;
+
+                // PrivateData._uORB_Acceleration_X = ax_earth * GravityAccel * 100.0f;
+                // PrivateData._uORB_Acceleration_Y = ay_earth * GravityAccel * 100.0f;
+                // PrivateData._uORB_Acceleration_Z = (az_earth - PrivateData._uORB_MPU9250_A_Static_Vector) * GravityAccel * 100.0f;
+
+                // ================= Remove YAW version =================
                 float q0 = PrivateData._uORB_Raw_QuaternionQ[0];
                 float q1 = PrivateData._uORB_Raw_QuaternionQ[1];
                 float q2 = PrivateData._uORB_Raw_QuaternionQ[2];
                 float q3 = PrivateData._uORB_Raw_QuaternionQ[3];
 
                 float norm = sqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
-                q0 /= norm;
-                q1 /= norm;
-                q2 /= norm;
-                q3 /= norm;
+                if (norm > 1e-6f)
+                {
+                    q0 /= norm;
+                    q1 /= norm;
+                    q2 /= norm;
+                    q3 /= norm;
+                }
+                else
+                {
+                    q0 = 1.0f;
+                    q1 = 0.0f;
+                    q2 = 0.0f;
+                    q3 = 0.0f;
+                }
+
+                float q_yaw_0 = q0;
+                float q_yaw_3 = q3;
+                float norm_yaw = sqrt(q_yaw_0 * q_yaw_0 + q_yaw_3 * q_yaw_3);
+
+                float qt0, qt1, qt2, qt3;
+
+                if (norm_yaw > 1e-6f)
+                {
+                    q_yaw_0 /= norm_yaw;
+                    q_yaw_3 /= norm_yaw;
+
+                    qt0 = q_yaw_0 * q0 + q_yaw_3 * q3;
+                    qt1 = q_yaw_0 * q1 + q_yaw_3 * q2;
+                    qt2 = q_yaw_0 * q2 - q_yaw_3 * q1;
+                    qt3 = q_yaw_0 * q3 - q_yaw_3 * q0;
+                }
+                else
+                {
+                    qt0 = q0;
+                    qt1 = q1;
+                    qt2 = q2;
+                    qt3 = q3;
+                }
+
+                float norm_tilt = sqrt(qt0 * qt0 + qt1 * qt1 + qt2 * qt2 + qt3 * qt3);
+                if (norm_tilt > 1e-6f)
+                {
+                    qt0 /= norm_tilt;
+                    qt1 /= norm_tilt;
+                    qt2 /= norm_tilt;
+                    qt3 /= norm_tilt;
+                }
 
                 float ax = PrivateData._uORB_MPU9250_ADF_X;
                 float ay = PrivateData._uORB_MPU9250_ADF_Y;
                 float az = PrivateData._uORB_MPU9250_ADF_Z;
 
-                float ax_earth = (q0 * q0 + q1 * q1 - q2 * q2 - q3 * q3) * ax +
-                                 (2 * (q1 * q2 - q0 * q3)) * ay +
-                                 (2 * (q1 * q3 + q0 * q2)) * az;
+                float ax_level = (qt0 * qt0 + qt1 * qt1 - qt2 * qt2 - qt3 * qt3) * ax +
+                                 (2.0f * (qt1 * qt2 - qt0 * qt3)) * ay +
+                                 (2.0f * (qt1 * qt3 + qt0 * qt2)) * az;
 
-                float ay_earth = (2 * (q1 * q2 + q0 * q3)) * ax +
-                                 (q0 * q0 - q1 * q1 + q2 * q2 - q3 * q3) * ay +
-                                 (2 * (q2 * q3 - q0 * q1)) * az;
+                float ay_level = (2.0f * (qt1 * qt2 + qt0 * qt3)) * ax +
+                                 (qt0 * qt0 - qt1 * qt1 + qt2 * qt2 - qt3 * qt3) * ay +
+                                 (2.0f * (qt2 * qt3 - qt0 * qt1)) * az;
 
-                float az_earth = (2 * (q1 * q3 - q0 * q2)) * ax +
-                                 (2 * (q2 * q3 + q0 * q1)) * ay +
-                                 (q0 * q0 - q1 * q1 - q2 * q2 + q3 * q3) * az;
+                float az_level = (2.0f * (qt1 * qt3 - qt0 * qt2)) * ax +
+                                 (2.0f * (qt2 * qt3 + qt0 * qt1)) * ay +
+                                 (qt0 * qt0 - qt1 * qt1 - qt2 * qt2 + qt3 * qt3) * az;
 
-                PrivateData._uORB_MPU9250_A_Static_X = ax_earth;
-                PrivateData._uORB_MPU9250_A_Static_Y = ay_earth;
-                PrivateData._uORB_MPU9250_A_Static_Z = az_earth;
+                PrivateData._uORB_MPU9250_A_Static_X = ax_level;
+                PrivateData._uORB_MPU9250_A_Static_Y = ay_level;
+                PrivateData._uORB_MPU9250_A_Static_Z = az_level;
 
-                PrivateData._uORB_Acceleration_X = ax_earth * GravityAccel * 100.0f;
-                PrivateData._uORB_Acceleration_Y = ay_earth * GravityAccel * 100.0f;
-                PrivateData._uORB_Acceleration_Z = (az_earth - PrivateData._uORB_MPU9250_A_Static_Vector) * GravityAccel * 100.0f;
+                PrivateData._uORB_Acceleration_X = ax_level * GravityAccel * 100.0f;
+                PrivateData._uORB_Acceleration_Y = ay_level * GravityAccel * 100.0f;
+                PrivateData._uORB_Acceleration_Z = (az_level - PrivateData._uORB_MPU9250_A_Static_Vector) * GravityAccel * 100.0f;
             }
         }
         return PrivateData;
