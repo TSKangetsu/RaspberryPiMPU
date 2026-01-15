@@ -257,7 +257,7 @@ public:
 
 	void MadgwickResetToAccel()
 	{
-		beta = 2.0;
+		beta = 10.0;
 	}
 
 	void MadgwickSetAccelWeight(float _beta)

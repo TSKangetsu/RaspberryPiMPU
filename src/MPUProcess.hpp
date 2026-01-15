@@ -210,7 +210,7 @@ public:
         for (int cali_count = 0; cali_count < caliRequest; cali_count++)
         {
             MPUSensorsDataGet();
-            ResetMPUMixAngle();
+            ResetMPUMixAngle(true);
             _Tmp_Gryo_X_Cali += PrivateData._uORB_MPU9250_G_X;
             _Tmp_Gryo_Y_Cali += PrivateData._uORB_MPU9250_G_Y;
             _Tmp_Gryo_Z_Cali += PrivateData._uORB_MPU9250_G_Z;
@@ -228,11 +228,13 @@ public:
         PrivateData._flag_MPU9250_G_Y_Cali = _Tmp_Gryo_Y_Cali / caliRequest;
         PrivateData._flag_MPU9250_G_Z_Cali = _Tmp_Gryo_Z_Cali / caliRequest;
         PrivateData._uORB_MPU9250_A_Static_Vector = _Tmp_Accel_Static_Cali / caliRequest;
+        ResetMPUMixAngle(false);
         return 0;
     };
 
     inline int MPUCalibrationOnline()
     {
+        ResetMPUMixAngle(true);
         if (PrivateData._uORB_MPU9250_CalibrationCountDown == 0)
         {
             PrivateData._flag_MPU9250_G_X_Cali = 0;
@@ -258,6 +260,7 @@ public:
             PrivateData._flag_MPU9250_G_Z_Cali = _Tmp_Gryo_Z_Cali_ON / caliRequest;
             PrivateData._uORB_MPU9250_A_Static_Vector = _Tmp_Accel_Static_Cali_ON / caliRequest;
             PrivateData._uORB_MPU9250_CalibrationCountDown = 0;
+            ResetMPUMixAngle(false);
             return 0;
         }
         PrivateData._uORB_MPU9250_CalibrationCountDown++;
@@ -493,7 +496,8 @@ public:
                 PrivateConfig.GyroToAccelBeta *
                 exp(-pow((PrivateData._uORB_MPU9250_A_Vector - PrivateData._uORB_MPU9250_A_Static_Vector), 2) / (2 * pow(MAX_ACC_NEARNESS, 2)));
 
-            AHRSSys->MadgwickSetAccelWeight(PrivateData.MPUMixTraditionBeta);
+            if (!AHRSForceSync)
+                AHRSSys->MadgwickSetAccelWeight(PrivateData.MPUMixTraditionBeta);
 
             if (!AHRSEnable)
                 AHRSSys->MadgwickAHRSIMUApply(PrivateData._uORB_Gryo__Roll, PrivateData._uORB_Gryo_Pitch, PrivateData._uORB_Gryo___Yaw,
@@ -530,42 +534,6 @@ public:
         {
             if (PrivateData._uORB_MPU9250_AccelCountDown == 1)
             {
-                // float q0 = PrivateData._uORB_Raw_QuaternionQ[0];
-                // float q1 = PrivateData._uORB_Raw_QuaternionQ[1];
-                // float q2 = PrivateData._uORB_Raw_QuaternionQ[2];
-                // float q3 = PrivateData._uORB_Raw_QuaternionQ[3];
-
-                // float norm = sqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
-                // q0 /= norm;
-                // q1 /= norm;
-                // q2 /= norm;
-                // q3 /= norm;
-
-                // float ax = PrivateData._uORB_MPU9250_ADF_X;
-                // float ay = PrivateData._uORB_MPU9250_ADF_Y;
-                // float az = PrivateData._uORB_MPU9250_ADF_Z;
-
-                // float ax_earth = (q0 * q0 + q1 * q1 - q2 * q2 - q3 * q3) * ax +
-                //                  (2 * (q1 * q2 - q0 * q3)) * ay +
-                //                  (2 * (q1 * q3 + q0 * q2)) * az;
-
-                // float ay_earth = (2 * (q1 * q2 + q0 * q3)) * ax +
-                //                  (q0 * q0 - q1 * q1 + q2 * q2 - q3 * q3) * ay +
-                //                  (2 * (q2 * q3 - q0 * q1)) * az;
-
-                // float az_earth = (2 * (q1 * q3 - q0 * q2)) * ax +
-                //                  (2 * (q2 * q3 + q0 * q1)) * ay +
-                //                  (q0 * q0 - q1 * q1 - q2 * q2 + q3 * q3) * az;
-
-                // PrivateData._uORB_MPU9250_A_Static_X = ax_earth;
-                // PrivateData._uORB_MPU9250_A_Static_Y = ay_earth;
-                // PrivateData._uORB_MPU9250_A_Static_Z = az_earth;
-
-                // PrivateData._uORB_Acceleration_X = ax_earth * GravityAccel * 100.0f;
-                // PrivateData._uORB_Acceleration_Y = ay_earth * GravityAccel * 100.0f;
-                // PrivateData._uORB_Acceleration_Z = (az_earth - PrivateData._uORB_MPU9250_A_Static_Vector) * GravityAccel * 100.0f;
-
-                // ================= Remove YAW version =================
                 float q0 = PrivateData._uORB_Raw_QuaternionQ[0];
                 float q1 = PrivateData._uORB_Raw_QuaternionQ[1];
                 float q2 = PrivateData._uORB_Raw_QuaternionQ[2];
@@ -648,8 +616,9 @@ public:
         return PrivateData;
     }
 
-    inline void ResetMPUMixAngle()
+    inline void ResetMPUMixAngle(bool forceSync)
     {
+        AHRSForceSync = forceSync;
         AHRSSys->MadgwickResetToAccel();
     }
 
@@ -883,6 +852,7 @@ private:
     float MPU9250_Accel_LSB = MPU9250_ACCEL_LSB; //+-16g
     uint8_t Tmp_MPU9250_Buffer[20] = {0};
     bool AHRSEnable = false;
+    bool AHRSForceSync = false;
     uint64_t LastUpdate = 0;
     MPUData PrivateData;
     MPUConfig PrivateConfig;
