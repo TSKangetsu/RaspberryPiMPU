@@ -627,6 +627,11 @@ public:
         AHRSSys->MadgwickResetToMag();
     }
 
+    inline void ResetMixYawZero()
+    {
+        AHRSSys->MadgwickResetYaw();
+    }
+
     inline ~RPiMPU9250()
     {
         AHRSSys.reset();

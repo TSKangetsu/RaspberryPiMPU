@@ -275,6 +275,26 @@ public:
 		magBeta = 1.0f;
 	}
 
+	void MadgwickResetYaw()
+	{
+		float current_yaw = atan2f(q1 * q2 + q0 * q3, 0.5f - q2 * q2 - q3 * q3);
+
+		float half_yaw = current_yaw * 0.5f;
+		float r0 = cosf(half_yaw);
+		float r3 = -sinf(half_yaw);
+
+		float new_q0 = r0 * q0 - r3 * q3;
+		float new_q1 = r0 * q1 - r3 * q2;
+		float new_q2 = r0 * q2 + r3 * q1;
+		float new_q3 = r0 * q3 + r3 * q0;
+
+		float recipNorm = invSqrt(new_q0 * new_q0 + new_q1 * new_q1 + new_q2 * new_q2 + new_q3 * new_q3);
+		q0 = new_q0 * recipNorm;
+		q1 = new_q1 * recipNorm;
+		q2 = new_q2 * recipNorm;
+		q3 = new_q3 * recipNorm;
+	}
+
 private:
 	float beta = 0;
 	float betaConfig = 0;
